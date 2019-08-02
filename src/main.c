@@ -44,6 +44,7 @@ static char tag[] = "mpu6050";
 
 void task_mpu6050( void *ignore );
 void vTask2( void *pvParameters );
+void mcpwm_example_servo_control(void *arg);
 
 /* Глобальная переменная для хранения приоритета Задачи 2 */
 xTaskHandle xTask2Handle;
@@ -145,6 +146,7 @@ void app_main(void) {
 	gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
 	xTaskCreatePinnedToCore(&vTask2, "vTask2", 2048, NULL, 5, NULL, 0);
 	xTaskCreatePinnedToCore(&task_mpu6050, "task_mpu6050", 2048, NULL, 1, NULL, 0);
+	xTaskCreatePinnedToCore(&mcpwm_example_servo_control, "mcpwm_example_servo_control", 2048, NULL, 4, NULL, 0);
 
 	ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
 }
