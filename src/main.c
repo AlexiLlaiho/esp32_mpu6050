@@ -18,7 +18,7 @@
 
 #define MPU6050_ACCEL_XOUT_H 0x3B
 #define MPU6050_PWR_MGMT_1   0x6B
-
+#define MPU6050_GYRO_XOUT_H 0x43
 /*
  * The following registers contain the primary data we are interested in
  * 0x3B MPU6050_ACCEL_XOUT_H
@@ -50,6 +50,14 @@ void mcpwm_example_servo_control(void *arg);
 xTaskHandle xTask2Handle;
 
 void task_mpu6050(void *ignore) {
+	gpio_config_t GPIO_Conf;
+	GPIO_Conf.pin_bit_mask = (1 << 19);
+	GPIO_Conf.mode = GPIO_MODE_OUTPUT;
+	GPIO_Conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
+	GPIO_Conf.pull_up_en = GPIO_PULLUP_DISABLE;
+	GPIO_Conf.intr_type = GPIO_INTR_DISABLE;
+	gpio_config(&GPIO_Conf);
+	
 	ESP_LOGD(tag, ">> mpu6050");
 	i2c_config_t conf;
 	conf.mode = I2C_MODE_MASTER;
@@ -88,6 +96,10 @@ void task_mpu6050(void *ignore) {
 	short accel_y;
 	short accel_z;
 
+	short Temp;
+
+	short gyro_x, gyro_y, gyro_z;
+
 	while(1) {
 		// Tell the MPU6050 to position the internal register pointer to register
 		// MPU6050_ACCEL_XOUT_H.
@@ -99,17 +111,18 @@ void task_mpu6050(void *ignore) {
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
 		i2c_cmd_link_delete(cmd);
 
+		i2c_set_timeout(I2C_NUM_0, 400000);
 		cmd = i2c_cmd_link_create();
 		ESP_ERROR_CHECK(i2c_master_start(cmd));
 		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
 
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data,   0));
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+1, 0));
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+2, 0));
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+3, 0));
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+4, 0));
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+5, 1));
-
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data,   0)); // X-High
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+1, 0)); // X-Low
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+2, 0)); // Y-High
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+3, 0)); // Y-Low
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+4, 0)); // Z-High
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+5, 1)); // Z-Low
+		
 		//i2c_master_read(cmd, data, sizeof(data), 1);
 		ESP_ERROR_CHECK(i2c_master_stop(cmd));
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
@@ -118,8 +131,43 @@ void task_mpu6050(void *ignore) {
 		accel_x = (data[0] << 8) | data[1];
 		accel_y = (data[2] << 8) | data[3];
 		accel_z = (data[4] << 8) | data[5];
-		printf ("accel_x: %d, accel_y: %d, accel_z: %d \n", accel_x, accel_y, accel_z);
 
+		cmd = i2c_cmd_link_create();
+		ESP_ERROR_CHECK(i2c_master_start(cmd));
+		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, MPU6050_GYRO_XOUT_H, 1));
+		ESP_ERROR_CHECK(i2c_master_stop(cmd));
+		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+		i2c_cmd_link_delete(cmd);
+
+		cmd = i2c_cmd_link_create();
+		ESP_ERROR_CHECK(i2c_master_start(cmd));
+		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
+
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+8, 0));
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+9, 0));
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+10, 0));
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+11, 0));
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+12, 0));
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+13, 1));
+
+		ESP_ERROR_CHECK(i2c_master_stop(cmd));
+		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+		i2c_cmd_link_delete(cmd);
+
+		gyro_x = (data[8] << 8) | data[9];
+		gyro_y = (data[10] << 8) | data[11];
+		gyro_z = (data[12] << 8) | data[13];
+		
+		printf ("accel_x: %d, accel_y: %d, accel_z: %d, gyro_x: %d, gyro_y: %d, gyro_z: %d \n", 
+				accel_x, 
+				accel_y, 
+				accel_z, 
+				gyro_x, 
+				gyro_y, 
+				gyro_z);
+
+		//printf ("gyro_x: %d, gyro_y: %d, gyro_z: %d \n", gyro_x, gyro_y, gyro_z); 
 		vTaskDelay(500/portTICK_PERIOD_MS);
 	}
 
