@@ -51,10 +51,10 @@ xTaskHandle xTask2Handle;
 
 void task_mpu6050(void *ignore) {
 	gpio_config_t GPIO_Conf;
-	GPIO_Conf.pin_bit_mask = (1 << 19);
+	GPIO_Conf.pin_bit_mask = GPIO_SEL_19;
 	GPIO_Conf.mode = GPIO_MODE_OUTPUT;
-	GPIO_Conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
-	GPIO_Conf.pull_up_en = GPIO_PULLUP_DISABLE;
+	GPIO_Conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	GPIO_Conf.pull_up_en = GPIO_PULLUP_ENABLE;
 	GPIO_Conf.intr_type = GPIO_INTR_DISABLE;
 	gpio_config(&GPIO_Conf);
 	
@@ -99,6 +99,8 @@ void task_mpu6050(void *ignore) {
 	short Temp;
 
 	short gyro_x, gyro_y, gyro_z;
+
+	int Pin_Level = 0;
 
 	while(1) {
 		// Tell the MPU6050 to position the internal register pointer to register
@@ -167,8 +169,11 @@ void task_mpu6050(void *ignore) {
 				gyro_y, 
 				gyro_z);
 
-		//printf ("gyro_x: %d, gyro_y: %d, gyro_z: %d \n", gyro_x, gyro_y, gyro_z); 
-		vTaskDelay(500/portTICK_PERIOD_MS);
+		
+		gpio_set_level(GPIO_NUM_19, Pin_Level);
+		Pin_Level = !Pin_Level;
+
+		vTaskDelay(13/portTICK_PERIOD_MS);
 	}
 
 	vTaskDelete(NULL);
