@@ -9,6 +9,7 @@
 #include <esp_log.h>
 #include <freertos/task.h>
 #include <math.h>
+#include "MadgwickAHRS.h"
 
 #include "sdkconfig.h"
 
@@ -19,23 +20,6 @@
 #define MPU6050_ACCEL_XOUT_H 0x3B
 #define MPU6050_PWR_MGMT_1   0x6B
 #define MPU6050_GYRO_XOUT_H 0x43
-/*
- * The following registers contain the primary data we are interested in
- * 0x3B MPU6050_ACCEL_XOUT_H
- * 0x3C MPU6050_ACCEL_XOUT_L
- * 0x3D MPU6050_ACCEL_YOUT_H
- * 0x3E MPU6050_ACCEL_YOUT_L
- * 0x3F MPU6050_ACCEL_ZOUT_H
- * 0x50 MPU6050_ACCEL_ZOUT_L
- * 0x41 MPU6050_TEMP_OUT_H
- * 0x42 MPU6050_TEMP_OUT_L
- * 0x43 MPU6050_GYRO_XOUT_H
- * 0x44 MPU6050_GYRO_XOUT_L
- * 0x45 MPU6050_GYRO_YOUT_H
- * 0x46 MPU6050_GYRO_YOUT_L
- * 0x47 MPU6050_GYRO_ZOUT_H
- * 0x48 MPU6050_GYRO_ZOUT_L
- */
 
 static char tag[] = "mpu6050";
 
@@ -50,6 +34,14 @@ void mcpwm_example_servo_control(void *arg);
 xTaskHandle xTask2Handle;
 
 void task_mpu6050(void *ignore) {
+
+	uint8_t data[14];
+
+	float accel_x, accel_y, accel_z;
+	float gyro_x, gyro_y, gyro_z;
+	int Pin_Level = 0;
+	float roll, pitch, heading;
+
 	gpio_config_t GPIO_Conf;
 	GPIO_Conf.pin_bit_mask = GPIO_SEL_19;
 	GPIO_Conf.mode = GPIO_MODE_OUTPUT;
@@ -59,6 +51,7 @@ void task_mpu6050(void *ignore) {
 	gpio_config(&GPIO_Conf);
 	
 	ESP_LOGD(tag, ">> mpu6050");
+
 	i2c_config_t conf;
 	conf.mode = I2C_MODE_MASTER;
 	conf.sda_io_num = PIN_SDA;
@@ -89,18 +82,7 @@ void task_mpu6050(void *ignore) {
 	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
-
-	uint8_t data[14];
-
-	short accel_x;
-	short accel_y;
-	short accel_z;
-
-	short Temp;
-
-	short gyro_x, gyro_y, gyro_z;
-
-	int Pin_Level = 0;
+	Madgwick();
 
 	while(1) {
 		// Tell the MPU6050 to position the internal register pointer to register
@@ -160,15 +142,13 @@ void task_mpu6050(void *ignore) {
 		gyro_x = (data[8] << 8) | data[9];
 		gyro_y = (data[10] << 8) | data[11];
 		gyro_z = (data[12] << 8) | data[13];
-		
-		printf ("accel_x: %d, accel_y: %d, accel_z: %d, gyro_x: %d, gyro_y: %d, gyro_z: %d \n", 
-				accel_x, 
-				accel_y, 
-				accel_z, 
-				gyro_x, 
-				gyro_y, 
-				gyro_z);
+				
 
+		updateIMU(gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
+		roll = getRoll();
+    	pitch = getPitch();
+    	heading = getYaw();
+		//printf ("Roll: %f, Pitch: %f, Yaw: %f \n", roll, pitch, heading);
 		
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
@@ -177,7 +157,7 @@ void task_mpu6050(void *ignore) {
 	}
 
 	vTaskDelete(NULL);
-} // task_hmc5883l
+} 
 
 esp_err_t event_handler(void *ctx, system_event_t *event)
 {
