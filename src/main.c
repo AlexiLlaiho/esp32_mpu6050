@@ -10,7 +10,7 @@
 #include <freertos/task.h>
 #include <math.h>
 #include "MadgwickAHRS.h"
-
+#include "app_blink_led.h"
 #include "sdkconfig.h"
 
 #define PIN_SDA 21
@@ -27,7 +27,7 @@ static char tag[] = "mpu6050";
 #define ESP_ERROR_CHECK(x)   do { esp_err_t rc = (x); if (rc != ESP_OK) { ESP_LOGE("err", "esp_err_t = %d", rc); assert(0 && #x);} } while(0);
 
 void task_mpu6050( void *ignore );
-void vTask2( void *pvParameters );
+// void vTask2( void *pvParameters );
 void mcpwm_example_servo_control(void *arg);
 
 /* Глобальная переменная для хранения приоритета Задачи 2 */
@@ -164,15 +164,15 @@ esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
-void vTask2(void *pvParameters) {
-	int level = 0;
-	for (;;) {
-		gpio_set_level(GPIO_NUM_2, level);
-		level = !level;
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	}
-	vTaskDelete( NULL);
-}
+// void vTask2(void *pvParameters) {
+// 	int level = 0;
+// 	for (;;) {
+// 		gpio_set_level(GPIO_NUM_2, level);
+// 		level = !level;
+// 		vTaskDelay(1000 / portTICK_PERIOD_MS);
+// 	}
+// 	vTaskDelete( NULL);
+// }
 
 void app_main(void) {
 	printf("Hello_WOLRD!");
