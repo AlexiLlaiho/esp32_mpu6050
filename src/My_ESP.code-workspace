@@ -20,7 +20,9 @@
 			"esp_log.h": "c",
 			"freertos.h": "c",
 			"task.h": "c",
-			"math.h": "c"
-		}
+			"math.h": "c",
+			"app_mpu6050.h": "c"
+		},
+		"git.ignoreLimitWarning": true
 	}
 }
