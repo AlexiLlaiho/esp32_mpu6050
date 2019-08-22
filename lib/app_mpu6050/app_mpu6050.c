@@ -2,38 +2,30 @@
 
 float convertRawAcceleration(int aRaw);
 float convertRawGyro(int gRaw);
-
+void GPIO_Conf(void);
+void I2C_Conf(void);
+void MPU6050_Conf(uint8_t Reg_Addr, DLPF Value);
 uint8_t data[14];
 
-float accel_x, accel_y, accel_z;
-float gyro_x, gyro_y, gyro_z;
+int16_t accel_x, accel_y, accel_z;
+int16_t gyro_x, gyro_y, gyro_z;
 int Pin_Level = 0;
 float roll, pitch, heading;
 float convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz; 
 
 void task_mpu6050(void *ignore) {
 
-	gpio_config_t GPIO_Conf;
-	GPIO_Conf.pin_bit_mask = GPIO_SEL_19;
-	GPIO_Conf.mode = GPIO_MODE_OUTPUT;
-	GPIO_Conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-	GPIO_Conf.pull_up_en = GPIO_PULLUP_ENABLE;
-	GPIO_Conf.intr_type = GPIO_INTR_DISABLE;
-	gpio_config(&GPIO_Conf);
-	
+	GPIO_Conf();
 	ESP_LOGD(tag, ">> mpu6050");
+	I2C_Conf();
+	// MPU6050_Conf(0x1A, DLPF_CFG_2);
 
-	i2c_config_t conf;
-	conf.mode = I2C_MODE_MASTER;
-	conf.sda_io_num = PIN_SDA;
-	conf.scl_io_num = PIN_CLK;
-	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.master.clk_speed = 100000;
-	ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
-	ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+	if (cmd == NULL){
+		printf("Memory_allocated \n");
+		while(1);
+	}
 
-	i2c_cmd_handle_t cmd;
 	vTaskDelay(200/portTICK_PERIOD_MS);
 
 	cmd = i2c_cmd_link_create();
@@ -66,7 +58,9 @@ void task_mpu6050(void *ignore) {
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
 		i2c_cmd_link_delete(cmd);
 
+
 		i2c_set_timeout(I2C_NUM_0, 400000);
+	
 		cmd = i2c_cmd_link_create();
 		ESP_ERROR_CHECK(i2c_master_start(cmd));
 		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
@@ -77,8 +71,6 @@ void task_mpu6050(void *ignore) {
 		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+3, 0)); // Y-Low
 		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+4, 0)); // Z-High
 		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+5, 1)); // Z-Low
-		
-		//i2c_master_read(cmd, data, sizeof(data), 1);
 		ESP_ERROR_CHECK(i2c_master_stop(cmd));
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
 		i2c_cmd_link_delete(cmd);
@@ -86,7 +78,8 @@ void task_mpu6050(void *ignore) {
 		accel_x = (data[0] << 8) | data[1];
 		accel_y = (data[2] << 8) | data[3];
 		accel_z = (data[4] << 8) | data[5];
-
+		// printf("Ax = %d  Ay = %d  Az = %d \n ", accel_x, accel_y, accel_z);
+	
 		cmd = i2c_cmd_link_create();
 		ESP_ERROR_CHECK(i2c_master_start(cmd));
 		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
@@ -113,7 +106,7 @@ void task_mpu6050(void *ignore) {
 		gyro_x = (data[8] << 8) | data[9];
 		gyro_y = (data[10] << 8) | data[11];
 		gyro_z = (data[12] << 8) | data[13];
-		printf("Ax = %f  Ay = %f  Az = %f  Gx = %f  Gy = %f Gz = %f \n", accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
+		// printf("  Gx = %f  Gy = %f Gz = %f \n", gyro_x, gyro_y, gyro_z);
 
 		convert_ax = convertRawAcceleration(accel_x);
     	convert_ay = convertRawAcceleration(accel_y);
@@ -154,3 +147,40 @@ float convertRawGyro(int gRaw) {
   float g = (gRaw * 250.0) / 32768.0;
   return g;
 }
+
+void GPIO_Conf(){
+	gpio_config_t GPIO_Conf;
+	GPIO_Conf.pin_bit_mask = GPIO_SEL_19;
+	GPIO_Conf.mode = GPIO_MODE_OUTPUT;
+	GPIO_Conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	GPIO_Conf.pull_up_en = GPIO_PULLUP_ENABLE;
+	GPIO_Conf.intr_type = GPIO_INTR_DISABLE;
+	gpio_config(&GPIO_Conf);
+}
+
+void I2C_Conf(){
+	i2c_config_t conf;
+	conf.mode = I2C_MODE_MASTER;
+	conf.sda_io_num = PIN_SDA;
+	conf.scl_io_num = PIN_CLK;
+	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+	conf.master.clk_speed = 100000;
+	ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
+	ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
+
+}
+
+void MPU6050_Conf(uint8_t Reg_Addr, DLPF Value){
+		i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+		ESP_ERROR_CHECK(i2c_master_start(cmd));
+		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, Reg_Addr, 1));
+		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, Value, 1));
+		ESP_ERROR_CHECK(i2c_master_stop(cmd));
+		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+		i2c_cmd_link_delete(cmd);
+}
+
+
+

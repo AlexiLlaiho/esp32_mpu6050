@@ -31,6 +31,16 @@
 #define MPU6050_PWR_MGMT_1   0x6B
 #define MPU6050_GYRO_XOUT_H 0x43
 
+typedef enum
+{
+    DLPF_CFG_0 = 0,
+    DLPF_CFG_1,
+    DLPF_CFG_2,
+    DLPF_CFG_3,
+    DLPF_CFG_4,
+    DLPF_CFG_5
+} DLPF;
+
 static char tag[] = "mpu6050";
 
 #ifdef __cplusplus
