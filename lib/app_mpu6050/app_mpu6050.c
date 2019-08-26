@@ -4,7 +4,7 @@ float convertRawAcceleration(int aRaw);
 float convertRawGyro(int gRaw);
 void GPIO_Conf(void);
 void I2C_Conf(void);
-void MPU6050_Conf(uint8_t Reg_Addr, DLPF Value);
+void MPU6050_Conf(uint8_t Reg_Addr, int Value);
 uint8_t data[14];
 
 int16_t accel_x, accel_y, accel_z;
@@ -18,14 +18,14 @@ void task_mpu6050(void *ignore) {
 	GPIO_Conf();
 	ESP_LOGD(tag, ">> mpu6050");
 	I2C_Conf();
-	// MPU6050_Conf(0x1A, DLPF_CFG_2);
-
+	
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	if (cmd == NULL){
 		printf("Memory_allocated \n");
 		while(1);
 	}
-
+	MPU6050_Conf(0x1A, 0x04); //Preconfigured DLPF
+	MPU6050_Conf(0x1B, 0x18); //Preconfigured Gyro_Range
 	vTaskDelay(200/portTICK_PERIOD_MS);
 
 	cmd = i2c_cmd_link_create();
@@ -78,7 +78,10 @@ void task_mpu6050(void *ignore) {
 		accel_x = (data[0] << 8) | data[1];
 		accel_y = (data[2] << 8) | data[3];
 		accel_z = (data[4] << 8) | data[5];
-		// printf("Ax = %d  Ay = %d  Az = %d \n ", accel_x, accel_y, accel_z);
+		float f_accel_x = accel_x;
+		float f_accel_y = accel_y;
+		float f_accel_z = accel_z;
+		// printf("Ax = %f  Ay = %f  Az = %f ", f_accel_x, f_accel_y, f_accel_z);
 	
 		cmd = i2c_cmd_link_create();
 		ESP_ERROR_CHECK(i2c_master_start(cmd));
@@ -103,10 +106,13 @@ void task_mpu6050(void *ignore) {
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
 		i2c_cmd_link_delete(cmd);
 
-		gyro_x = (data[8] << 8) | data[9];
-		gyro_y = (data[10] << 8) | data[11];
-		gyro_z = (data[12] << 8) | data[13];
-		// printf("  Gx = %f  Gy = %f Gz = %f \n", gyro_x, gyro_y, gyro_z);
+		gyro_x = ((data[8] << 8) | data[9]) + 400;
+		gyro_y = ((data[10] << 8) | data[11]) + 310;
+		gyro_z = ((data[12] << 8) | data[13]) - 0;
+		float f_gyro_x = gyro_x;
+		float f_gyro_y = gyro_y;
+		float f_gyro_z = gyro_z;
+		// printf("  Gx = %f  Gy = %f Gz = %f \n", f_gyro_x, f_gyro_y, f_gyro_z);
 
 		convert_ax = convertRawAcceleration(accel_x);
     	convert_ay = convertRawAcceleration(accel_y);
@@ -115,11 +121,12 @@ void task_mpu6050(void *ignore) {
     	convert_gy = convertRawGyro(gyro_y);
     	convert_gz = convertRawGyro(gyro_z);
 
-		// updateIMU(gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
-		// roll = getRoll();
-    	// pitch = getPitch();
-    	// heading = getYaw();
-		//printf ("Roll: %f, Pitch: %f, Yaw: %f \n", roll, pitch, heading);
+		// updateIMU(f_gyro_x, f_gyro_y, f_gyro_z, f_accel_x, f_accel_y, f_accel_z);
+		updateIMU(convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz);
+		roll = getRoll();
+    	pitch = getPitch();
+    	heading = getYaw();
+		printf ("Roll: %f, Pitch: %f, Yaw: %f \n", roll, pitch, heading);
 		
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
@@ -148,6 +155,18 @@ float convertRawGyro(int gRaw) {
   return g;
 }
 
+void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ){
+  float K =0.002;
+  float Acc_XZ = (atan2(AcX, AcZ));// * RAD_TO_DEG;
+  float Acc_YZ = (atan2(AcY, AcZ));// * RAD_TO_DEG;
+  
+  // скорость угловая В радианах - падения
+//   Gyr_X = - (float(GyX) - CompensatorY)  * _1_d_131;
+//   Gyr_Y = - (float(GyY) - CompensatorY)  * _1_d_131;
+//   //Комплементарный фильтр
+//   float AcYsum = (1-K) * ((OldAcYsum + Gyro * Dt) + K * Acc_XZ);
+}
+
 void GPIO_Conf(){
 	gpio_config_t GPIO_Conf;
 	GPIO_Conf.pin_bit_mask = GPIO_SEL_19;
@@ -171,15 +190,15 @@ void I2C_Conf(){
 
 }
 
-void MPU6050_Conf(uint8_t Reg_Addr, DLPF Value){
-		i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-		ESP_ERROR_CHECK(i2c_master_start(cmd));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, Reg_Addr, 1));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, Value, 1));
-		ESP_ERROR_CHECK(i2c_master_stop(cmd));
-		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
-		i2c_cmd_link_delete(cmd);
+void MPU6050_Conf(uint8_t Reg_Addr, int Value){
+		i2c_cmd_handle_t constr = i2c_cmd_link_create();
+		ESP_ERROR_CHECK(i2c_master_start(constr));
+		ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+		ESP_ERROR_CHECK(i2c_master_write_byte(constr, Reg_Addr, 1));
+		ESP_ERROR_CHECK(i2c_master_write_byte(constr, Value, 1));
+		ESP_ERROR_CHECK(i2c_master_stop(constr));
+		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000/portTICK_PERIOD_MS));
+		i2c_cmd_link_delete(constr);
 }
 
 

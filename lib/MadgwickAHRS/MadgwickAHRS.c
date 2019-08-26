@@ -180,7 +180,7 @@ void updateIMU(float gx, float gy, float gz, float ax, float ay, float az)
 	gx *= 0.0174533f;
 	gy *= 0.0174533f;
 	gz *= 0.0174533f;
-	//printf("Gx = %f Gy = %f Gz = %f \n", gx, gy, gz);
+	// printf("Gx = %f Gy = %f Gz = %f \n", gx, gy, gz);
 
 	// Rate of change of quaternion from gyroscope
 	qDot1 = 0.5f * (-q1 * gx - q2 * gy - q3 * gz);
@@ -197,7 +197,7 @@ void updateIMU(float gx, float gy, float gz, float ax, float ay, float az)
 		ax *= recipNorm;
 		ay *= recipNorm;
 		az *= recipNorm;
-
+		// printf("%f  %f  %f \n", ax, ay, az);
 		// Auxiliary variables to avoid repeated arithmetic
 		_2q0 = 2.0f * q0;
 		_2q1 = 2.0f * q1;
@@ -269,7 +269,6 @@ void computeAngles()
 	roll = atan2f(q0 * q1 + q2 * q3, 0.5f - q1 * q1 - q2 * q2);
 	pitch = asinf(-2.0f * (q1 * q3 - q0 * q2));
 	yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
-	printf("Roll = %f  Pitch = %f  Yaw = %f \n", roll, pitch, yaw);
 	anglesComputed = 1;
 }
 

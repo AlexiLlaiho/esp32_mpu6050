@@ -41,6 +41,13 @@ typedef enum
     DLPF_CFG_5
 } DLPF;
 
+typedef enum{
+FULL_SCALE_RANGE_250 = 0,
+FULL_SCALE_RANGE_500,
+FULL_SCALE_RANGE_1000,
+FULL_SCALE_RANGE_2000
+}FS_SEL;
+
 static char tag[] = "mpu6050";
 
 #ifdef __cplusplus
