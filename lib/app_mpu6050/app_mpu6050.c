@@ -5,13 +5,15 @@ float convertRawGyro(int gRaw);
 void GPIO_Conf(void);
 void I2C_Conf(void);
 void MPU6050_Conf(uint8_t Reg_Addr, int Value);
+void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ);
 uint8_t data[14];
 
 int16_t accel_x, accel_y, accel_z;
 int16_t gyro_x, gyro_y, gyro_z;
 int Pin_Level = 0;
 float roll, pitch, heading;
-float convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz; 
+float convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz;
+double Angle_GX, Angle_GY, Angle_GZ; 
 
 void task_mpu6050(void *ignore) {
 
@@ -25,7 +27,10 @@ void task_mpu6050(void *ignore) {
 		while(1);
 	}
 	MPU6050_Conf(0x1A, 0x04); //Preconfigured DLPF
+	vTaskDelay(200/portTICK_PERIOD_MS);
 	MPU6050_Conf(0x1B, 0x18); //Preconfigured Gyro_Range
+	vTaskDelay(200/portTICK_PERIOD_MS);
+	MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
 	vTaskDelay(200/portTICK_PERIOD_MS);
 
 	cmd = i2c_cmd_link_create();
@@ -78,9 +83,9 @@ void task_mpu6050(void *ignore) {
 		accel_x = (data[0] << 8) | data[1];
 		accel_y = (data[2] << 8) | data[3];
 		accel_z = (data[4] << 8) | data[5];
-		float f_accel_x = accel_x;
-		float f_accel_y = accel_y;
-		float f_accel_z = accel_z;
+		// float f_accel_x = accel_x;
+		// float f_accel_y = accel_y;
+		// float f_accel_z = accel_z;
 		// printf("Ax = %f  Ay = %f  Az = %f ", f_accel_x, f_accel_y, f_accel_z);
 	
 		cmd = i2c_cmd_link_create();
@@ -109,25 +114,26 @@ void task_mpu6050(void *ignore) {
 		gyro_x = ((data[8] << 8) | data[9]) + 400;
 		gyro_y = ((data[10] << 8) | data[11]) + 310;
 		gyro_z = ((data[12] << 8) | data[13]) - 0;
-		float f_gyro_x = gyro_x;
-		float f_gyro_y = gyro_y;
-		float f_gyro_z = gyro_z;
+		// float f_gyro_x = gyro_x;
+		// float f_gyro_y = gyro_y;
+		// float f_gyro_z = gyro_z;
 		// printf("  Gx = %f  Gy = %f Gz = %f \n", f_gyro_x, f_gyro_y, f_gyro_z);
 
-		convert_ax = convertRawAcceleration(accel_x);
-    	convert_ay = convertRawAcceleration(accel_y);
-    	convert_az = convertRawAcceleration(accel_z);
-    	convert_gx = convertRawGyro(gyro_x);
-    	convert_gy = convertRawGyro(gyro_y);
-    	convert_gz = convertRawGyro(gyro_z);
+		// convert_ax = convertRawAcceleration(accel_x);
+    	// convert_ay = convertRawAcceleration(accel_y);
+    	// convert_az = convertRawAcceleration(accel_z);
+    	// convert_gx = convertRawGyro(gyro_x);
+    	// convert_gy = convertRawGyro(gyro_y);
+    	// convert_gz = convertRawGyro(gyro_z);
 
 		// updateIMU(f_gyro_x, f_gyro_y, f_gyro_z, f_accel_x, f_accel_y, f_accel_z);
-		updateIMU(convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz);
-		roll = getRoll();
-    	pitch = getPitch();
-    	heading = getYaw();
-		printf ("Roll: %f, Pitch: %f, Yaw: %f \n", roll, pitch, heading);
-		
+		// updateIMU(convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz);
+		// roll = getRoll();
+    	// pitch = getPitch();
+    	// heading = getYaw();
+		// printf ("Roll: %f, Pitch: %f, Yaw: %f \n", roll, pitch, heading);
+		Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
+
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
 
@@ -138,33 +144,38 @@ void task_mpu6050(void *ignore) {
 } 
 
 float convertRawAcceleration(int aRaw) {
-  // since we are using 2G range
-  // -2g maps to a raw value of -32768
-  // +2g maps to a raw value of 32767
-  
-  float a = (aRaw * 2.0) / 32768.0;
+  // +2g -> 16384 LSB/g
+  // +4g -> 8192 LSB/g
+  // +8g -> 4096 LSB/g
+  // +16g -> 2048 LSB/g
+  float a = aRaw / 1;
   return a;
 }
 
 float convertRawGyro(int gRaw) {
-  // since we are using 250 degrees/seconds range
-  // -250 maps to a raw value of -32768
-  // +250 maps to a raw value of 32767
+  // +250 -> 131  LSB/grad/s
+  // +500 -> 65.5 LSB/grad/s
+  // +1000 -> 32.8 LSB/grad/s
+  // +2000 -> 16.4 LSB/grad/s
   
-  float g = (gRaw * 250.0) / 32768.0;
+  float g = gRaw / 16.4;
   return g;
 }
 
 void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ){
-  float K =0.002;
-  float Acc_XZ = (atan2(AcX, AcZ));// * RAD_TO_DEG;
-  float Acc_YZ = (atan2(AcY, AcZ));// * RAD_TO_DEG;
-  
-  // скорость угловая В радианах - падения
-//   Gyr_X = - (float(GyX) - CompensatorY)  * _1_d_131;
-//   Gyr_Y = - (float(GyY) - CompensatorY)  * _1_d_131;
-//   //Комплементарный фильтр
-//   float AcYsum = (1-K) * ((OldAcYsum + Gyro * Dt) + K * Acc_XZ);
+//   double K = 0.01;
+//   double Old_GX = Angle_GX;
+//   double Old_GY = Angle_GY;
+  float Acc_XZ = (atan2(convertRawAcceleration(AcX), convertRawAcceleration(AcZ) ) ); // Angle is computing by accelerometer data
+  float Acc_YZ = (atan2(convertRawAcceleration(AcY), convertRawAcceleration(AcZ) ) ); // Angle is computing by accelerometer data
+  printf("%f   %f  \n", Acc_XZ, Acc_YZ); 
+//   Angle_GX = convertRawGyro(GyX) * 0.02;
+//   Angle_GY = convertRawGyro(GyY) * 0.02;
+//   Angle_GZ = Angle_GZ + convertRawGyro(GyZ) * 0.02;
+
+//   Angle_GX = ((0.1) *(Old_GX + Angle_GX) + (Acc_XZ * 0.002));
+//   Angle_GY = ((0.1) *(Old_GY + Angle_GY) + (Acc_YZ * 0.002));
+//   printf("%f   %f  \n", Angle_GX, Angle_GY); 
 }
 
 void GPIO_Conf(){
