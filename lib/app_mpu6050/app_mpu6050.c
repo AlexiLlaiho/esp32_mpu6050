@@ -6,8 +6,10 @@ void GPIO_Conf(void);
 void I2C_Conf(void);
 void MPU6050_Conf(uint8_t Reg_Addr, int Value);
 void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ);
-uint8_t data[14];
 
+
+uint8_t data[14];
+uint8_t Set_Data[3];
 int16_t accel_x, accel_y, accel_z;
 int16_t gyro_x, gyro_y, gyro_z;
 int Pin_Level = 0;
@@ -26,12 +28,12 @@ void task_mpu6050(void *ignore) {
 		printf("Memory_allocated \n");
 		while(1);
 	}
+
 	MPU6050_Conf(0x1A, 0x04); //Preconfigured DLPF
-	vTaskDelay(200/portTICK_PERIOD_MS);
-	MPU6050_Conf(0x1B, 0x18); //Preconfigured Gyro_Range
-	vTaskDelay(200/portTICK_PERIOD_MS);
-	MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
-	vTaskDelay(200/portTICK_PERIOD_MS);
+	//MPU6050_Conf(0x1B, 0x18); //Preconfigured Gyro_Range
+	//MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
+	// i2c_set_timeout(I2C_NUM_0, 400000);
+	// MPU6050_Conf_Output();
 
 	cmd = i2c_cmd_link_create();
 	ESP_ERROR_CHECK(i2c_master_start(cmd));
@@ -50,7 +52,7 @@ void task_mpu6050(void *ignore) {
 	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
-	Madgwick();
+	//Madgwick();
 
 	while(1) {
 		// Tell the MPU6050 to position the internal register pointer to register
@@ -63,8 +65,7 @@ void task_mpu6050(void *ignore) {
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
 		i2c_cmd_link_delete(cmd);
 
-
-		i2c_set_timeout(I2C_NUM_0, 400000);
+		i2c_set_timeout(I2C_NUM_0, 400000); //- it gives a possible to get data
 	
 		cmd = i2c_cmd_link_create();
 		ESP_ERROR_CHECK(i2c_master_start(cmd));
@@ -210,7 +211,21 @@ void MPU6050_Conf(uint8_t Reg_Addr, int Value){
 		ESP_ERROR_CHECK(i2c_master_stop(constr));
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000/portTICK_PERIOD_MS));
 		i2c_cmd_link_delete(constr);
+
+		vTaskDelay(30/portTICK_PERIOD_MS);
+		//i2c_set_timeout(I2C_NUM_0, 400000);
+		constr = i2c_cmd_link_create();
+		ESP_ERROR_CHECK(i2c_master_start(constr));
+		ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1)); //start adress from CONFIG_REG
+
+		ESP_ERROR_CHECK(i2c_master_read_byte(constr, Set_Data, 1)); 
+		ESP_ERROR_CHECK(i2c_master_stop(constr));
+		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000/portTICK_PERIOD_MS));
+		i2c_cmd_link_delete(constr);
+
+		int Settings_1 = Set_Data;
+		printf("DLPF = %d \n", Settings_1);
+		vTaskDelay(3000/portTICK_PERIOD_MS);
+		//printf("DLPF = %d   Gyro_Rate = %d   Accelerometer = %d \n", Set_Data, Set_Data+1, Set_Data+2);
+		
 }
-
-
-
