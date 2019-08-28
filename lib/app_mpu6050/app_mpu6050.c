@@ -4,15 +4,16 @@ float convertRawAcceleration(int aRaw);
 float convertRawGyro(int gRaw);
 void GPIO_Conf(void);
 void I2C_Conf(void);
-void MPU6050_Conf(uint8_t Reg_Addr, int Value);
+void MPU6050_Conf(uint8_t Reg_Addr, int Value, char IF);
 void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ);
-
+void Only_Read_One_Byte(void);
 
 uint8_t data[14];
 uint8_t Set_Data[3];
 int16_t accel_x, accel_y, accel_z;
 int16_t gyro_x, gyro_y, gyro_z;
 int Pin_Level = 0;
+int Settings_1;
 float roll, pitch, heading;
 float convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz;
 double Angle_GX, Angle_GY, Angle_GZ; 
@@ -22,19 +23,14 @@ void task_mpu6050(void *ignore) {
 	GPIO_Conf();
 	ESP_LOGD(tag, ">> mpu6050");
 	I2C_Conf();
+	//Only_Read_One_Byte();
 	
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	if (cmd == NULL){
 		printf("Memory_allocated \n");
 		while(1);
 	}
-
-	MPU6050_Conf(0x1A, 0x04); //Preconfigured DLPF
-	//MPU6050_Conf(0x1B, 0x18); //Preconfigured Gyro_Range
-	//MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
-	// i2c_set_timeout(I2C_NUM_0, 400000);
-	// MPU6050_Conf_Output();
-
+	
 	cmd = i2c_cmd_link_create();
 	ESP_ERROR_CHECK(i2c_master_start(cmd));
 	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
@@ -52,6 +48,10 @@ void task_mpu6050(void *ignore) {
 	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
+	MPU6050_Conf(0x19, 0x00, 1); //Preconfigured DLPF
+	MPU6050_Conf(0x1A, 0x04, 1); //Preconfigured DLPF
+	MPU6050_Conf(0x1B, 0x18, 1); //Preconfigured Gyro_Range
+	MPU6050_Conf(0x1C, 0x10, 0); //Preconfigured Gyro_Range
 	//Madgwick();
 
 	while(1) {
@@ -202,7 +202,7 @@ void I2C_Conf(){
 
 }
 
-void MPU6050_Conf(uint8_t Reg_Addr, int Value){
+void MPU6050_Conf(uint8_t Reg_Addr, int Value, char IF){
 		i2c_cmd_handle_t constr = i2c_cmd_link_create();
 		ESP_ERROR_CHECK(i2c_master_start(constr));
 		ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
@@ -212,20 +212,40 @@ void MPU6050_Conf(uint8_t Reg_Addr, int Value){
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000/portTICK_PERIOD_MS));
 		i2c_cmd_link_delete(constr);
 
-		vTaskDelay(30/portTICK_PERIOD_MS);
-		//i2c_set_timeout(I2C_NUM_0, 400000);
-		constr = i2c_cmd_link_create();
-		ESP_ERROR_CHECK(i2c_master_start(constr));
-		ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1)); //start adress from CONFIG_REG
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+		if (IF == 1)
+		{
+			constr = i2c_cmd_link_create();
+			ESP_ERROR_CHECK(i2c_master_start(constr));
+			ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1)); //start adress from CONFIG_REG
 
-		ESP_ERROR_CHECK(i2c_master_read_byte(constr, Set_Data, 1)); 
-		ESP_ERROR_CHECK(i2c_master_stop(constr));
-		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000/portTICK_PERIOD_MS));
-		i2c_cmd_link_delete(constr);
+			ESP_ERROR_CHECK(i2c_master_read_byte(constr, Set_Data, 1));
+			ESP_ERROR_CHECK(i2c_master_stop(constr));
+			ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
+			i2c_cmd_link_delete(constr);
+			
+			static uint8_t *p;
+			p = Set_Data;
+			Settings_1 = *p;
+			printf("Value = %d \n", Settings_1);
+			vTaskDelay(1000 / portTICK_PERIOD_MS);
+		}
+}
 
-		int Settings_1 = Set_Data;
-		printf("DLPF = %d \n", Settings_1);
-		vTaskDelay(3000/portTICK_PERIOD_MS);
-		//printf("DLPF = %d   Gyro_Rate = %d   Accelerometer = %d \n", Set_Data, Set_Data+1, Set_Data+2);
-		
+void Only_Read_One_Byte(){
+			i2c_cmd_handle_t constr = i2c_cmd_link_create();
+			ESP_ERROR_CHECK(i2c_master_start(constr));
+			ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1)); //start adress from CONFIG_REG
+
+			ESP_ERROR_CHECK(i2c_master_write_byte(constr, 0x75, 1));
+			ESP_ERROR_CHECK(i2c_master_read_byte(constr, Set_Data, 1));
+			ESP_ERROR_CHECK(i2c_master_stop(constr));
+			ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
+			i2c_cmd_link_delete(constr);
+
+			static uint8_t *p;
+			p = Set_Data;
+			Settings_1 = *p;
+			printf("Value = %d \n", Settings_1);
+			vTaskDelay(5000 / portTICK_PERIOD_MS);	
 }
