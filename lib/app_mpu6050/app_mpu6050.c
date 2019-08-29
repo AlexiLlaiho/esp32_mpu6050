@@ -1,12 +1,12 @@
 #include "app_mpu6050.h"
 
-float convertRawAcceleration(int aRaw);
-float convertRawGyro(int gRaw);
+double convertRawAcceleration(int16_t aRaw);
+double convertRawGyro(int16_t gRaw);
 void GPIO_Conf(void);
 void I2C_Conf(void);
-void MPU6050_Conf(uint8_t Reg_Addr, int Value, char IF);
+void MPU6050_Conf(uint8_t Reg_Addr, int Value);
 void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ);
-void Only_Read_One_Byte(void);
+void Only_Read_One_Byte(uint8_t Reg_Number);
 
 uint8_t data[14];
 uint8_t Set_Data[3];
@@ -23,7 +23,7 @@ void task_mpu6050(void *ignore) {
 	GPIO_Conf();
 	ESP_LOGD(tag, ">> mpu6050");
 	I2C_Conf();
-	//Only_Read_One_Byte();
+	Only_Read_One_Byte(0x75);
 	
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	if (cmd == NULL){
@@ -48,10 +48,13 @@ void task_mpu6050(void *ignore) {
 	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
-	MPU6050_Conf(0x19, 0x00, 1); //Preconfigured DLPF
-	MPU6050_Conf(0x1A, 0x04, 1); //Preconfigured DLPF
-	MPU6050_Conf(0x1B, 0x18, 1); //Preconfigured Gyro_Range
-	MPU6050_Conf(0x1C, 0x10, 0); //Preconfigured Gyro_Range
+	// MPU6050_Conf(0x19, 0x00, 1); //Preconfigured DLPF
+	MPU6050_Conf(0x1A, 0x04); //Preconfigured DLPF
+	// Only_Read_One_Byte(0x1A);
+	MPU6050_Conf(0x1B, 0x18); //Preconfigured Gyro_Range
+	// Only_Read_One_Byte(0x1B);
+	MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
+	// Only_Read_One_Byte(0x1C);
 	//Madgwick();
 
 	while(1) {
@@ -84,10 +87,7 @@ void task_mpu6050(void *ignore) {
 		accel_x = (data[0] << 8) | data[1];
 		accel_y = (data[2] << 8) | data[3];
 		accel_z = (data[4] << 8) | data[5];
-		// float f_accel_x = accel_x;
-		// float f_accel_y = accel_y;
-		// float f_accel_z = accel_z;
-		// printf("Ax = %f  Ay = %f  Az = %f ", f_accel_x, f_accel_y, f_accel_z);
+		// printf("Ax = %f  Ay = %f  Az = %f  \n", d_accel_x, d_accel_y, d_accel_z);
 	
 		cmd = i2c_cmd_link_create();
 		ESP_ERROR_CHECK(i2c_master_start(cmd));
@@ -144,22 +144,23 @@ void task_mpu6050(void *ignore) {
 	vTaskDelete(NULL);
 } 
 
-float convertRawAcceleration(int aRaw) {
+double convertRawAcceleration(int16_t aRaw) {
   // +2g -> 16384 LSB/g
   // +4g -> 8192 LSB/g
   // +8g -> 4096 LSB/g
   // +16g -> 2048 LSB/g
-  float a = aRaw / 1;
+  double Acc_Preset = 4096;
+  double a = aRaw / Acc_Preset;
   return a;
 }
 
-float convertRawGyro(int gRaw) {
+double convertRawGyro(int16_t gRaw) {
   // +250 -> 131  LSB/grad/s
   // +500 -> 65.5 LSB/grad/s
   // +1000 -> 32.8 LSB/grad/s
   // +2000 -> 16.4 LSB/grad/s
-  
-  float g = gRaw / 16.4;
+  double Gyro_Preset = 16.4;
+  double g = gRaw / Gyro_Preset;
   return g;
 }
 
@@ -167,9 +168,19 @@ void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int1
 //   double K = 0.01;
 //   double Old_GX = Angle_GX;
 //   double Old_GY = Angle_GY;
-  float Acc_XZ = (atan2(convertRawAcceleration(AcX), convertRawAcceleration(AcZ) ) ); // Angle is computing by accelerometer data
-  float Acc_YZ = (atan2(convertRawAcceleration(AcY), convertRawAcceleration(AcZ) ) ); // Angle is computing by accelerometer data
-  printf("%f   %f  \n", Acc_XZ, Acc_YZ); 
+//   double Acc_XZ = (atan2(convertRawAcceleration(AcX), convertRawAcceleration(AcZ) ) ) * 57.295; // Angle is computing by accelerometer data
+//   double Acc_YZ = (atan2(convertRawAcceleration(AcY), convertRawAcceleration(AcZ) ) ) * 57.295; // Angle is computing by accelerometer data
+double d_AcX = AcX;
+double d_AcY = AcY;
+double d_AcZ = AcZ;
+double AcYZ = (sqrt( (d_AcY * d_AcY) + (d_AcZ * d_AcZ) ) );
+double Alpha = (atan2( d_AcX, AcYZ )) * 57.295 ; //http://bitaks.com/resources/inclinometer/content.html
+double AcXZ = (sqrt( (d_AcX * d_AcX) + (d_AcZ * d_AcZ) ) );
+double Beta = (atan2( d_AcX, AcXZ )) * 57.295 ;
+double AcXY = (sqrt( (d_AcX * d_AcX) + (d_AcY * d_AcY) ) );
+double Tetta = (atan2( d_AcX, AcXY )) * 57.295 ;
+
+printf("%f  %f  %f \n", Alpha, Beta, Tetta); 
 //   Angle_GX = convertRawGyro(GyX) * 0.02;
 //   Angle_GY = convertRawGyro(GyY) * 0.02;
 //   Angle_GZ = Angle_GZ + convertRawGyro(GyZ) * 0.02;
@@ -202,50 +213,38 @@ void I2C_Conf(){
 
 }
 
-void MPU6050_Conf(uint8_t Reg_Addr, int Value, char IF){
-		i2c_cmd_handle_t constr = i2c_cmd_link_create();
-		ESP_ERROR_CHECK(i2c_master_start(constr));
-		ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
-		ESP_ERROR_CHECK(i2c_master_write_byte(constr, Reg_Addr, 1));
-		ESP_ERROR_CHECK(i2c_master_write_byte(constr, Value, 1));
-		ESP_ERROR_CHECK(i2c_master_stop(constr));
-		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000/portTICK_PERIOD_MS));
-		i2c_cmd_link_delete(constr);
-
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-		if (IF == 1)
-		{
-			constr = i2c_cmd_link_create();
-			ESP_ERROR_CHECK(i2c_master_start(constr));
-			ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1)); //start adress from CONFIG_REG
-
-			ESP_ERROR_CHECK(i2c_master_read_byte(constr, Set_Data, 1));
-			ESP_ERROR_CHECK(i2c_master_stop(constr));
-			ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
-			i2c_cmd_link_delete(constr);
-			
-			static uint8_t *p;
-			p = Set_Data;
-			Settings_1 = *p;
-			printf("Value = %d \n", Settings_1);
-			vTaskDelay(1000 / portTICK_PERIOD_MS);
-		}
+void MPU6050_Conf(uint8_t Reg_Addr, int Value)
+{
+	i2c_cmd_handle_t constr = i2c_cmd_link_create();
+	ESP_ERROR_CHECK(i2c_master_start(constr));
+	ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+	ESP_ERROR_CHECK(i2c_master_write_byte(constr, Reg_Addr, 1));
+	ESP_ERROR_CHECK(i2c_master_write_byte(constr, Value, 1));
+	ESP_ERROR_CHECK(i2c_master_stop(constr));
+	ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
+	i2c_cmd_link_delete(constr);
 }
 
-void Only_Read_One_Byte(){
-			i2c_cmd_handle_t constr = i2c_cmd_link_create();
-			ESP_ERROR_CHECK(i2c_master_start(constr));
-			ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1)); //start adress from CONFIG_REG
+void Only_Read_One_Byte(uint8_t Reg_Number){
 
-			ESP_ERROR_CHECK(i2c_master_write_byte(constr, 0x75, 1));
-			ESP_ERROR_CHECK(i2c_master_read_byte(constr, Set_Data, 1));
-			ESP_ERROR_CHECK(i2c_master_stop(constr));
-			ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
-			i2c_cmd_link_delete(constr);
+	i2c_cmd_handle_t constr = i2c_cmd_link_create();
+	ESP_ERROR_CHECK(i2c_master_start(constr));
+	ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+	ESP_ERROR_CHECK(i2c_master_write_byte(constr, Reg_Number, 1));
+	ESP_ERROR_CHECK(i2c_master_stop(constr));
+	ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
+	i2c_cmd_link_delete(constr);
 
-			static uint8_t *p;
-			p = Set_Data;
-			Settings_1 = *p;
-			printf("Value = %d \n", Settings_1);
-			vTaskDelay(5000 / portTICK_PERIOD_MS);	
+	uint8_t Mein_Name_ist;
+
+	constr = i2c_cmd_link_create();
+	ESP_ERROR_CHECK(i2c_master_start(constr));
+	ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1)); //start adress from CONFIG_REG
+	ESP_ERROR_CHECK(i2c_master_read_byte(constr, &Mein_Name_ist, 1));
+	ESP_ERROR_CHECK(i2c_master_stop(constr));
+	ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
+	i2c_cmd_link_delete(constr);
+
+	printf("Reg_Number = %d  Value = %d \n", Reg_Number, Mein_Name_ist);
+	vTaskDelay(1000 / portTICK_PERIOD_MS);	
 }

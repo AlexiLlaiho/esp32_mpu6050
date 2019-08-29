@@ -21,7 +21,8 @@
 			"freertos.h": "c",
 			"task.h": "c",
 			"math.h": "c",
-			"app_mpu6050.h": "c"
+			"app_mpu6050.h": "c",
+			"cmath": "c"
 		},
 		"git.ignoreLimitWarning": true
 	}
