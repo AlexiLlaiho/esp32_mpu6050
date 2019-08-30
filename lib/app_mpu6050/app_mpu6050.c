@@ -48,10 +48,10 @@ void task_mpu6050(void *ignore) {
 	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
-	// MPU6050_Conf(0x19, 0x00, 1); //Preconfigured DLPF
+	
 	MPU6050_Conf(0x1A, 0x04); //Preconfigured DLPF
 	// Only_Read_One_Byte(0x1A);
-	MPU6050_Conf(0x1B, 0x18); //Preconfigured Gyro_Range
+	MPU6050_Conf(0x1B, 0x18); //Preconfigured Accelerometer_Range
 	// Only_Read_One_Byte(0x1B);
 	MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
 	// Only_Read_One_Byte(0x1C);
@@ -115,17 +115,7 @@ void task_mpu6050(void *ignore) {
 		gyro_x = ((data[8] << 8) | data[9]) + 400;
 		gyro_y = ((data[10] << 8) | data[11]) + 310;
 		gyro_z = ((data[12] << 8) | data[13]) - 0;
-		// float f_gyro_x = gyro_x;
-		// float f_gyro_y = gyro_y;
-		// float f_gyro_z = gyro_z;
 		// printf("  Gx = %f  Gy = %f Gz = %f \n", f_gyro_x, f_gyro_y, f_gyro_z);
-
-		// convert_ax = convertRawAcceleration(accel_x);
-    	// convert_ay = convertRawAcceleration(accel_y);
-    	// convert_az = convertRawAcceleration(accel_z);
-    	// convert_gx = convertRawGyro(gyro_x);
-    	// convert_gy = convertRawGyro(gyro_y);
-    	// convert_gz = convertRawGyro(gyro_z);
 
 		// updateIMU(f_gyro_x, f_gyro_y, f_gyro_z, f_accel_x, f_accel_y, f_accel_z);
 		// updateIMU(convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz);
@@ -168,19 +158,18 @@ void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int1
 //   double K = 0.01;
 //   double Old_GX = Angle_GX;
 //   double Old_GY = Angle_GY;
-//   double Acc_XZ = (atan2(convertRawAcceleration(AcX), convertRawAcceleration(AcZ) ) ) * 57.295; // Angle is computing by accelerometer data
-//   double Acc_YZ = (atan2(convertRawAcceleration(AcY), convertRawAcceleration(AcZ) ) ) * 57.295; // Angle is computing by accelerometer data
+double exponent = 2.0;
 double d_AcX = AcX;
 double d_AcY = AcY;
 double d_AcZ = AcZ;
-double AcYZ = (sqrt( (d_AcY * d_AcY) + (d_AcZ * d_AcZ) ) );
+double AcYZ = (sqrt( pow(d_AcY, exponent) + pow(d_AcZ, exponent) ) );
 double Alpha = (atan2( d_AcX, AcYZ )) * 57.295 ; //http://bitaks.com/resources/inclinometer/content.html
-double AcXZ = (sqrt( (d_AcX * d_AcX) + (d_AcZ * d_AcZ) ) );
-double Beta = (atan2( d_AcX, AcXZ )) * 57.295 ;
-double AcXY = (sqrt( (d_AcX * d_AcX) + (d_AcY * d_AcY) ) );
-double Tetta = (atan2( d_AcX, AcXY )) * 57.295 ;
+double AcXZ = (sqrt( pow(d_AcX, exponent) + pow(d_AcZ, exponent) ) );
+double Beta = (atan2( d_AcY, AcXZ )) * 57.295 + 1.0;
+double AcXY = (sqrt( pow(d_AcX, exponent) + pow(d_AcY, exponent) ) );
+double Tetta = (atan2( d_AcZ, AcXY )) * 57.295 ;
+printf("%f %f %f \n", Alpha, Beta, Tetta); 
 
-printf("%f  %f  %f \n", Alpha, Beta, Tetta); 
 //   Angle_GX = convertRawGyro(GyX) * 0.02;
 //   Angle_GY = convertRawGyro(GyY) * 0.02;
 //   Angle_GZ = Angle_GZ + convertRawGyro(GyZ) * 0.02;

@@ -22,6 +22,7 @@
 #include "driver/i2c.h"
 #include "esp_log.h"
 #include "MadgwickAHRS.h"
+#include <math.h>
 
 #define PIN_SDA 21
 #define PIN_CLK 22
