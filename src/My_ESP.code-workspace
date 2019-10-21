@@ -6,6 +6,10 @@
 		{
 			"name": "My_ESP",
 			"path": "C:\\Users\\USER\\Documents\\PlatformIO\\Projects\\My_ESP"
+		},
+		{
+			"name": "ESP8266_Altimeter",
+			"path": "C:\\Users\\USER\\Documents\\PlatformIO\\Projects\\ESP8266_Altimeter"
 		}
 	],
 	"settings": {

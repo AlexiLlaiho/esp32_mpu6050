@@ -3,6 +3,8 @@
 double convertRawAcceleration(int16_t aRaw);
 double convertRawGyro(int16_t gRaw);
 void GPIO_Conf(void);
+void Get_Data_Accelerometer(void);
+void Get_Data_Gyro(int16_t Axe_1, int16_t Axe_2, int16_t Axe_3);
 void I2C_Conf(void);
 void MPU6050_Conf(uint8_t Reg_Addr, int Value);
 void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ);
@@ -17,6 +19,16 @@ int Settings_1;
 float roll, pitch, heading;
 float convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz;
 double Angle_GX, Angle_GY, Angle_GZ; 
+struct sensors_struct
+{
+	int16_t Xa_Calib[100]; /* data */
+	int16_t Ya_Calib[100]; /* data */
+	int16_t Za_Calib[100]; /* data */
+	int16_t Xg_Calib[100]; /* data */
+	int16_t Yg_Calib[100]; /* data */
+	int16_t Zg_Calib[100]; /* data */
+} Sensors_Calib;
+
 
 void task_mpu6050(void *ignore) {
 
@@ -24,7 +36,6 @@ void task_mpu6050(void *ignore) {
 	ESP_LOGD(tag, ">> mpu6050");
 	I2C_Conf();
 	Only_Read_One_Byte(0x75);
-	
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	if (cmd == NULL){
 		printf("Memory_allocated \n");
@@ -56,78 +67,18 @@ void task_mpu6050(void *ignore) {
 	MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
 	// Only_Read_One_Byte(0x1C);
 	//Madgwick();
+	for(uint8_t i = 0; i < 100; i++)
+	{
+		Get_Data_Gyro(Sensors_Calib.Xg_Calib[i], Sensors_Calib.Yg_Calib[i], Sensors_Calib.Zg_Calib[i]);	
+	}
 
-	while(1) {
-		// Tell the MPU6050 to position the internal register pointer to register
-		// MPU6050_ACCEL_XOUT_H.
-		cmd = i2c_cmd_link_create();
-		ESP_ERROR_CHECK(i2c_master_start(cmd));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, MPU6050_ACCEL_XOUT_H, 1));
-		ESP_ERROR_CHECK(i2c_master_stop(cmd));
-		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
-		i2c_cmd_link_delete(cmd);
-
-		i2c_set_timeout(I2C_NUM_0, 400000); //- it gives a possible to get data
-	
-		cmd = i2c_cmd_link_create();
-		ESP_ERROR_CHECK(i2c_master_start(cmd));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
-
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data,   0)); // X-High
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+1, 0)); // X-Low
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+2, 0)); // Y-High
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+3, 0)); // Y-Low
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+4, 0)); // Z-High
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+5, 1)); // Z-Low
-		ESP_ERROR_CHECK(i2c_master_stop(cmd));
-		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
-		i2c_cmd_link_delete(cmd);
-
-		accel_x = (data[0] << 8) | data[1];
-		accel_y = (data[2] << 8) | data[3];
-		accel_z = (data[4] << 8) | data[5];
-		// printf("Ax = %f  Ay = %f  Az = %f  \n", d_accel_x, d_accel_y, d_accel_z);
-	
-		cmd = i2c_cmd_link_create();
-		ESP_ERROR_CHECK(i2c_master_start(cmd));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, MPU6050_GYRO_XOUT_H, 1));
-		ESP_ERROR_CHECK(i2c_master_stop(cmd));
-		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
-		i2c_cmd_link_delete(cmd);
-
-		cmd = i2c_cmd_link_create();
-		ESP_ERROR_CHECK(i2c_master_start(cmd));
-		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
-
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+8, 0));
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+9, 0));
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+10, 0));
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+11, 0));
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+12, 0));
-		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+13, 1));
-
-		ESP_ERROR_CHECK(i2c_master_stop(cmd));
-		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
-		i2c_cmd_link_delete(cmd);
-
-		gyro_x = ((data[8] << 8) | data[9]) + 400;
-		gyro_y = ((data[10] << 8) | data[11]) + 310;
-		gyro_z = ((data[12] << 8) | data[13]) - 0;
-		// printf("  Gx = %f  Gy = %f Gz = %f \n", f_gyro_x, f_gyro_y, f_gyro_z);
-
-		// updateIMU(f_gyro_x, f_gyro_y, f_gyro_z, f_accel_x, f_accel_y, f_accel_z);
-		// updateIMU(convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz);
-		// roll = getRoll();
-    	// pitch = getPitch();
-    	// heading = getYaw();
-		// printf ("Roll: %f, Pitch: %f, Yaw: %f \n", roll, pitch, heading);
-		Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
-
+	while(1) 
+	{
+		Get_Data_Accelerometer();
+		Get_Data_Gyro(gyro_x, gyro_y, gyro_z);
+		//Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
-
 		vTaskDelay(13/portTICK_PERIOD_MS);
 	}
 
@@ -154,7 +105,8 @@ double convertRawGyro(int16_t gRaw) {
   return g;
 }
 
-void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ){
+void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ)
+{
 //   double K = 0.01;
 //   double Old_GX = Angle_GX;
 //   double Old_GY = Angle_GY;
@@ -236,4 +188,71 @@ void Only_Read_One_Byte(uint8_t Reg_Number){
 
 	printf("Reg_Number = %d  Value = %d \n", Reg_Number, Mein_Name_ist);
 	vTaskDelay(1000 / portTICK_PERIOD_MS);	
+}
+
+void Get_Data_Accelerometer()
+{
+	// Tell the MPU6050 to position the internal register pointer to register
+		// MPU6050_ACCEL_XOUT_H.
+		i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+		cmd = i2c_cmd_link_create();
+		ESP_ERROR_CHECK(i2c_master_start(cmd));
+		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, MPU6050_ACCEL_XOUT_H, 1));
+		ESP_ERROR_CHECK(i2c_master_stop(cmd));
+		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+		i2c_cmd_link_delete(cmd);
+
+		i2c_set_timeout(I2C_NUM_0, 400000); //- it gives a possible to get data
+	
+		cmd = i2c_cmd_link_create();
+		ESP_ERROR_CHECK(i2c_master_start(cmd));
+		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
+
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data,   0)); // X-High
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+1, 0)); // X-Low
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+2, 0)); // Y-High
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+3, 0)); // Y-Low
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+4, 0)); // Z-High
+		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+5, 1)); // Z-Low
+		ESP_ERROR_CHECK(i2c_master_stop(cmd));
+		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+		i2c_cmd_link_delete(cmd);
+
+		accel_x = (data[0] << 8) | data[1];
+		accel_y = (data[2] << 8) | data[3];
+		accel_z = (data[4] << 8) | data[5];
+		// printf("Ax = %f  Ay = %f  Az = %f  \n", d_accel_x, d_accel_y, d_accel_z);
+}
+
+void Get_Data_Gyro(int16_t Axe_1, int16_t Axe_2, int16_t Axe_3)
+{
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+	cmd = i2c_cmd_link_create();
+	ESP_ERROR_CHECK(i2c_master_start(cmd));
+	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, MPU6050_GYRO_XOUT_H, 1));
+	ESP_ERROR_CHECK(i2c_master_stop(cmd));
+	ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+	i2c_cmd_link_delete(cmd);
+
+	cmd = i2c_cmd_link_create();
+	ESP_ERROR_CHECK(i2c_master_start(cmd));
+	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
+
+	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+8, 0));
+	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+9, 0));
+	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+10, 0));
+	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+11, 0));
+	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+12, 0));
+	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+13, 1));
+
+	ESP_ERROR_CHECK(i2c_master_stop(cmd));
+	ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
+	i2c_cmd_link_delete(cmd);
+
+	Axe_1 = ((data[8] << 8) | data[9]);// + 400;
+	Axe_2 = ((data[10] << 8) | data[11]);// + 310;
+	Axe_3 = ((data[12] << 8) | data[13]);// - 0;
+	printf("%d %d %d \n", Axe_1, Axe_2, Axe_3);
 }
