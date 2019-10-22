@@ -4,7 +4,7 @@ double convertRawAcceleration(int16_t aRaw);
 double convertRawGyro(int16_t gRaw);
 void GPIO_Conf(void);
 void Get_Data_Accelerometer(void);
-void Get_Data_Gyro(int16_t Axe_1, int16_t Axe_2, int16_t Axe_3);
+int16_t Get_Data_Gyro(uint8_t Axes_Num); // 0 - X_gyro, 1- Y_gyro, 2 - Z_gyro
 void I2C_Conf(void);
 void MPU6050_Conf(uint8_t Reg_Addr, int Value);
 void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ);
@@ -14,6 +14,8 @@ uint8_t data[14];
 uint8_t Set_Data[3];
 int16_t accel_x, accel_y, accel_z;
 int16_t gyro_x, gyro_y, gyro_z;
+int16_t Gyro_Data;
+int16_t calib_gyro_x, calib_gyro_y, calib_gyro_z;
 int Pin_Level = 0;
 int Settings_1;
 float roll, pitch, heading;
@@ -67,15 +69,26 @@ void task_mpu6050(void *ignore) {
 	MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
 	// Only_Read_One_Byte(0x1C);
 	//Madgwick();
-	for(uint8_t i = 0; i < 100; i++)
-	{
-		Get_Data_Gyro(Sensors_Calib.Xg_Calib[i], Sensors_Calib.Yg_Calib[i], Sensors_Calib.Zg_Calib[i]);	
+
+	for(uint8_t i = 0; i < 20; i++)
+	{		
+		calib_gyro_x = calib_gyro_x + Get_Data_Gyro(0);;
+		calib_gyro_y = calib_gyro_y + Get_Data_Gyro(1);;
+		calib_gyro_z = calib_gyro_z + Get_Data_Gyro(2);;
+		printf("%d %d %d \n", calib_gyro_x, calib_gyro_y, calib_gyro_z);
+		vTaskDelay(200/portTICK_PERIOD_MS);
 	}
+
+	calib_gyro_x = calib_gyro_x / 20;
+	calib_gyro_y = calib_gyro_y / 20;
+	calib_gyro_z = calib_gyro_z / 20;
+	printf("Calibration Result: \n");
+	printf("%d %d %d \n", calib_gyro_x, calib_gyro_y, calib_gyro_z);
 
 	while(1) 
 	{
 		Get_Data_Accelerometer();
-		Get_Data_Gyro(gyro_x, gyro_y, gyro_z);
+		
 		//Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
@@ -225,7 +238,7 @@ void Get_Data_Accelerometer()
 		// printf("Ax = %f  Ay = %f  Az = %f  \n", d_accel_x, d_accel_y, d_accel_z);
 }
 
-void Get_Data_Gyro(int16_t Axe_1, int16_t Axe_2, int16_t Axe_3)
+int16_t Get_Data_Gyro(uint8_t Axes_Num)
 {
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	cmd = i2c_cmd_link_create();
@@ -239,20 +252,30 @@ void Get_Data_Gyro(int16_t Axe_1, int16_t Axe_2, int16_t Axe_3)
 	cmd = i2c_cmd_link_create();
 	ESP_ERROR_CHECK(i2c_master_start(cmd));
 	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
-
-	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+8, 0));
-	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+9, 0));
-	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+10, 0));
-	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+11, 0));
-	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+12, 0));
-	ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+13, 1));
+	switch (Axes_Num)
+	{
+		case 0 : ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+8, 0));
+				 ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+9, 0));
+				 Gyro_Data = ((data[8] << 8) | data[9]);// + 400;
+				 break;
+		case 1 : ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+10, 0));
+				 ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+11, 0));
+				 Gyro_Data = ((data[10] << 8) | data[11]);// + 310;
+				 break;
+		case 2 : ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+12, 0));
+				 ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+13, 1));
+				 Gyro_Data = ((data[12] << 8) | data[13]);// - 0;
+				 break; 		 		 
+	}
+		
 
 	ESP_ERROR_CHECK(i2c_master_stop(cmd));
 	ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
 	i2c_cmd_link_delete(cmd);
 
-	Axe_1 = ((data[8] << 8) | data[9]);// + 400;
-	Axe_2 = ((data[10] << 8) | data[11]);// + 310;
-	Axe_3 = ((data[12] << 8) | data[13]);// - 0;
-	printf("%d %d %d \n", Axe_1, Axe_2, Axe_3);
+	return Gyro_Data;
+	// Axe_1 = ((data[8] << 8) | data[9]);// + 400;
+	// Axe_2 = ((data[10] << 8) | data[11]);// + 310;
+	// Axe_3 = ((data[12] << 8) | data[13]);// - 0;
+	// printf("%d %d %d \n", Axe_1, Axe_2, Axe_3);
 }
