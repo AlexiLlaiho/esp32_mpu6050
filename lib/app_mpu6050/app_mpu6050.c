@@ -20,7 +20,9 @@ int Pin_Level = 0;
 int Settings_1;
 float roll, pitch, heading;
 float convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz;
-double Angle_GX, Angle_GY, Angle_GZ; 
+double Angle_GX = 0; 
+double Angle_GY = 0;
+double Angle_GZ = 0; 
 
 int16_t Xa_Calib[100]; /* data */
 int16_t Ya_Calib[100]; /* data */
@@ -28,10 +30,11 @@ int16_t Za_Calib[100]; /* data */
 int16_t Xg_Calib[100]; /* data */
 int16_t Yg_Calib[100]; /* data */
 int16_t Zg_Calib[100]; /* data */
-
 int16_t* pSensor_Xg; 
 int16_t* pSensor_Yg; 
 int16_t* pSensor_Zg; //pointers
+float Divider = 10;
+float calib_gyro_xf, calib_gyro_yf, calib_gyro_zf;
 
 void task_mpu6050(void *ignore) {
 
@@ -81,33 +84,33 @@ void task_mpu6050(void *ignore) {
 		calib_gyro_x += *(pSensor_Xg + i);
 		calib_gyro_y += *(pSensor_Yg + i);
 		calib_gyro_z += *(pSensor_Zg + i);
-		printf("%d %d %d \n", Xg_Calib[i], Yg_Calib[i], Zg_Calib[i]);
+		// printf("%d %d %d \n", Xg_Calib[i], Yg_Calib[i], Zg_Calib[i]);
 		vTaskDelay(1000/portTICK_PERIOD_MS);
 	}	
-
-	float Divider = 10;
-	float calib_gyro_xf, calib_gyro_yf, calib_gyro_zf; 
+ 
 	calib_gyro_xf = calib_gyro_x / Divider;
 	calib_gyro_yf = calib_gyro_y / Divider;
 	calib_gyro_zf = calib_gyro_z / Divider;
 	printf("Calibration Result: \n");
 	printf("%f %f %f \n", calib_gyro_xf, calib_gyro_yf, calib_gyro_zf);
+	vTaskDelay(5000/portTICK_PERIOD_MS);
 
 	while(1) 
 	{		
 		Get_Data_Accelerometer();
 		Get_Data_Gyro(&gyro_x, &gyro_y, &gyro_z);
-		printf("%f %f %f \n", gyro_x + calib_gyro_xf, gyro_y + calib_gyro_yf, gyro_z + calib_gyro_zf);
-		//Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
+		Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
-		vTaskDelay(13/portTICK_PERIOD_MS);
+		vTaskDelay(13/portTICK_PERIOD_MS);		
+		// vTaskDelay(1000/portTICK_PERIOD_MS);
 	}
 
 	vTaskDelete(NULL);
 } 
 
-double convertRawAcceleration(int16_t aRaw) {
+double convertRawAcceleration(int16_t aRaw) 
+{
   // +2g -> 16384 LSB/g
   // +4g -> 8192 LSB/g
   // +8g -> 4096 LSB/g
@@ -117,7 +120,8 @@ double convertRawAcceleration(int16_t aRaw) {
   return a;
 }
 
-double convertRawGyro(int16_t gRaw) {
+double convertRawGyro(int16_t gRaw) 
+{
   // +250 -> 131  LSB/grad/s
   // +500 -> 65.5 LSB/grad/s
   // +1000 -> 32.8 LSB/grad/s
@@ -129,28 +133,30 @@ double convertRawGyro(int16_t gRaw) {
 
 void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ)
 {
-//   double K = 0.01;
-//   double Old_GX = Angle_GX;
-//   double Old_GY = Angle_GY;
-double exponent = 2.0;
-double d_AcX = AcX;
-double d_AcY = AcY;
-double d_AcZ = AcZ;
-double AcYZ = (sqrt( pow(d_AcY, exponent) + pow(d_AcZ, exponent) ) );
-double Alpha = (atan2( d_AcX, AcYZ )) * 57.295 ; //http://bitaks.com/resources/inclinometer/content.html
-double AcXZ = (sqrt( pow(d_AcX, exponent) + pow(d_AcZ, exponent) ) );
-double Beta = (atan2( d_AcY, AcXZ )) * 57.295 + 1.0;
-double AcXY = (sqrt( pow(d_AcX, exponent) + pow(d_AcY, exponent) ) );
-double Tetta = (atan2( d_AcZ, AcXY )) * 57.295 ;
-printf("%f %f %f \n", Alpha, Beta, Tetta); 
+  double K = 0.02;
+  double Old_GX = Angle_GX;
+  double Old_GY = Angle_GY;
 
-//   Angle_GX = convertRawGyro(GyX) * 0.02;
-//   Angle_GY = convertRawGyro(GyY) * 0.02;
-//   Angle_GZ = Angle_GZ + convertRawGyro(GyZ) * 0.02;
+  double exponent = 2.0;
+  double d_AcX = AcX;
+  double d_AcY = AcY;
+  double d_AcZ = AcZ;
+  double AcYZ = (sqrt( pow(d_AcY, exponent) + pow(d_AcZ, exponent) ) );
+  double Alpha = (atan2( d_AcX, AcYZ )) * 57.295 ; //http://bitaks.com/resources/inclinometer/content.html
+  double AcXZ = (sqrt( pow(d_AcX, exponent) + pow(d_AcZ, exponent) ) );
+  double Beta = (atan2( d_AcY, AcXZ )) * 57.295 + 1.0;
+  double AcXY = (sqrt( pow(d_AcX, exponent) + pow(d_AcY, exponent) ) );
+  double Tetta = (atan2( d_AcZ, AcXY )) * 57.295 ;
+  printf("%f %f %f \n", Alpha, Beta, Tetta); 
+ 
+//   Angle_GX =  Old_GX + convertRawGyro(GyX) * 0.02; // 0.02 = 50Hz
+//   Angle_GY =  Old_GY + convertRawGyro(GyY) * 0.02;
+//   Angle_GZ = convertRawGyro(GyZ) * 0.02;
+//   printf("%f   %f  \n", Angle_GX, Angle_GY);
 
-//   Angle_GX = ((0.1) *(Old_GX + Angle_GX) + (Acc_XZ * 0.002));
-//   Angle_GY = ((0.1) *(Old_GY + Angle_GY) + (Acc_YZ * 0.002));
-//   printf("%f   %f  \n", Angle_GX, Angle_GY); 
+  Angle_GX = ((1 - K) *(convertRawGyro(GyX) * 0.01) + (Beta * K));
+  Angle_GY = ((1 - K) *(convertRawGyro(GyY) * 0.01) + (Alpha * K));
+  printf("%f   %f  \n", Angle_GX, Angle_GY); 
 }
 
 void GPIO_Conf(){
