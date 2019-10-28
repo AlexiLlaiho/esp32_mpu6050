@@ -23,7 +23,11 @@ float convert_ax, convert_ay, convert_az, convert_gx, convert_gy, convert_gz;
 double Angle_GX = 0; 
 double Angle_GY = 0;
 double Angle_GZ = 0; 
-
+char Strp_Aq = 0;
+double K = 0.02;
+double Old_GX;
+double Old_GY;
+double exponent = 2.0;
 int16_t Xa_Calib[100]; /* data */
 int16_t Ya_Calib[100]; /* data */
 int16_t Za_Calib[100]; /* data */
@@ -102,7 +106,7 @@ void task_mpu6050(void *ignore) {
 		Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
-		vTaskDelay(13/portTICK_PERIOD_MS);		
+		vTaskDelay(26/portTICK_PERIOD_MS);		
 		// vTaskDelay(1000/portTICK_PERIOD_MS);
 	}
 
@@ -133,11 +137,6 @@ double convertRawGyro(int16_t gRaw)
 
 void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ)
 {
-  double K = 0.02;
-  double Old_GX = Angle_GX;
-  double Old_GY = Angle_GY;
-
-  double exponent = 2.0;
   double d_AcX = AcX;
   double d_AcY = AcY;
   double d_AcZ = AcZ;
@@ -147,16 +146,28 @@ void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int1
   double Beta = (atan2( d_AcY, AcXZ )) * 57.295 + 1.0;
   double AcXY = (sqrt( pow(d_AcX, exponent) + pow(d_AcY, exponent) ) );
   double Tetta = (atan2( d_AcZ, AcXY )) * 57.295 ;
-  printf("%f %f %f \n", Alpha, Beta, Tetta); 
+//   printf("%f %f %f \n", Alpha, Beta, Tetta);
+
+  if (Strp_Aq == 0) 
+  {
+	Old_GX = Beta;
+	Old_GY = Alpha;
+	Strp_Aq = 1;
+  }
+  else 
+  {
+	Old_GX = Angle_GX;
+	Old_GY = Angle_GY;
+  }	
  
-//   Angle_GX =  Old_GX + convertRawGyro(GyX) * 0.02; // 0.02 = 50Hz
-//   Angle_GY =  Old_GY + convertRawGyro(GyY) * 0.02;
-//   Angle_GZ = convertRawGyro(GyZ) * 0.02;
+  Angle_GX =  Old_GX + convertRawGyro(GyX) * 0.02; // 0.02 = 50Hz
+  Angle_GY =  Old_GY + convertRawGyro(GyY) * 0.02;
+  Angle_GZ = convertRawGyro(GyZ) * 0.02;
 //   printf("%f   %f  \n", Angle_GX, Angle_GY);
 
-  Angle_GX = ((1 - K) *(convertRawGyro(GyX) * 0.01) + (Beta * K));
-  Angle_GY = ((1 - K) *(convertRawGyro(GyY) * 0.01) + (Alpha * K));
-  printf("%f   %f  \n", Angle_GX, Angle_GY); 
+  Angle_GX = ((1 - K) *( Angle_GX ) + (Beta * K));
+  Angle_GY = ((1 - K) *( Angle_GY ) + (Alpha * K));
+  printf("%f   %f  %f \n", Angle_GX, Angle_GY, Angle_GZ); 
 }
 
 void GPIO_Conf(){
