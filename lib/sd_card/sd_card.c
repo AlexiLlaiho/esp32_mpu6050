@@ -314,7 +314,7 @@ void write_a_file(void)
 void write_file_anv(void)
 {
     ESP_LOGI(TAG, "Initializing SD card");
-
+    int massive[] = {0, 1, 2, 3, 4, 5, 6}; //test array
 #ifndef USE_SPI_MODE
     ESP_LOGI(TAG, "Using SDMMC peripheral");
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
@@ -386,46 +386,20 @@ void write_file_anv(void)
         ESP_LOGE(TAG, "Failed to open file for writing");
         return;
     }
-    fprintf(f, "Hello %s!\n", card->cid.name);
-    fclose(f);
-    ESP_LOGI(TAG, "File written");
-
-    
-    char line[64];
-    fgets(line, sizeof(line), f);
-    fclose(f);
-    // strip newline
-    char *pos = strchr(line, '\n');
-    if (pos)
+    else
     {
-        *pos = '\0';
+        ESP_LOGE(TAG, "File for writing is here!");
     }
-    ESP_LOGI(TAG, "Read from file: '%s'", line);
-
-    struct dirent *pDirent;
-    DIR *pDir;
-    struct stat _stat;
-    char cPath[1024];    
-
-    while ((pDirent = readdir(pDir)) != NULL)
+    for (int z = 0; z < sizeof(massive) - 1; z++)
     {
-        sprintf(cPath, "/sdcard/%s", pDirent->d_name);
-        stat(cPath, &_stat);
-        if (S_ISDIR(_stat.st_mode))
-        {
-            printf("[%s] DIR %ld\n", pDirent->d_name, _stat.st_size);
-        }
-        else
-        {
-            printf("[%s] FILE %ld\n", pDirent->d_name, _stat.st_size);
-        }
+        fprintf(f, "value = %d; ", massive[z]);
     }
-    closedir(pDir);
 
-    esp_vfs_fat_sdmmc_unmount();
-    ESP_LOGI(TAG, "Card unmounted");
-}
+        ESP_LOGI(TAG, "File written");
 
+        esp_vfs_fat_sdmmc_unmount();
+        ESP_LOGI(TAG, "Card unmounted");
+    }
 
 void task_write_file(void *pvParameters)
 {    
