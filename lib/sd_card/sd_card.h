@@ -11,11 +11,11 @@
 #include "driver/sdspi_host.h"
 #include "driver/spi_common.h"
 #include "sdmmc_cmd.h"
-// #include "sdkconfig.h"
+#include "stddef.h"
 
-// #ifdef CONFIG_IDF_TARGET_ESP32
+#ifdef CONFIG_IDF_TARGET_ESP32
 #include "driver/sdmmc_host.h"
-// #endif
+#endif
 
 #ifdef __cplusplus
 extern "C"

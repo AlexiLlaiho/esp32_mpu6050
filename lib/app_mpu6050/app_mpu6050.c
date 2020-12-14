@@ -39,9 +39,11 @@ int16_t* pSensor_Yg;
 int16_t* pSensor_Zg; //pointers
 float Divider = 10;
 float calib_gyro_xf, calib_gyro_yf, calib_gyro_zf;
+float mpu_data_array_0[999], mpu_data_array_1[999], mpu_data_array_3[999];
+int mpu_array_lenght = sizeof(mpu_data_array_0) / sizeof(mpu_data_array_0[0]);
 
-void task_mpu6050(void *ignore) {
-
+void task_mpu6050(void *ignore)
+{
 	GPIO_Conf();
 	ESP_LOGD(tag, ">> mpu6050");
 	I2C_Conf();
@@ -106,10 +108,8 @@ void task_mpu6050(void *ignore) {
 		Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
-		vTaskDelay(26/portTICK_PERIOD_MS);		
-		// vTaskDelay(1000/portTICK_PERIOD_MS);
+		vTaskDelay(26/portTICK_PERIOD_MS);				
 	}
-
 	vTaskDelete(NULL);
 } 
 

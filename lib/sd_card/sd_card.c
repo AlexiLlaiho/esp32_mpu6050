@@ -315,6 +315,8 @@ void write_file_anv(void)
 {
     ESP_LOGI(TAG, "Initializing SD card");
     int massive[] = {0, 1, 2, 3, 4, 5, 6}; //test array
+    int mlenght = sizeof(massive) / sizeof(massive[0]);
+    printf("mlenght = %d \n", mlenght);
 #ifndef USE_SPI_MODE
     ESP_LOGI(TAG, "Using SDMMC peripheral");
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
@@ -337,7 +339,6 @@ void write_file_anv(void)
 
 #else
     ESP_LOGI(TAG, "Using SPI peripheral");
-
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
     slot_config.gpio_miso = PIN_NUM_MISO;
@@ -352,17 +353,10 @@ void write_file_anv(void)
     // If format_if_mount_failed is set to true, SD card will be partitioned and
     // formatted in case when mounting fails.
     // max_files Max number of open files
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-        .format_if_mount_failed = false,
-        .max_files = 5};
-
-    // Use settings defined above to initialize SD card and mount FAT filesystem.
-    // Note: esp_vfs_fat_sdmmc_mount is an all-in-one convenience function.
-    // Please check its source code and implement error recovery when developing
-    // production applications.
-    sdmmc_card_t *card;
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {.format_if_mount_failed = false, .max_files = 5};
+    sdmmc_card_t *card; // Use settings defined above to initialize SD card and mount FAT filesystem.
     esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
-
+    
     if (ret != ESP_OK)
     {
         if (ret == ESP_FAIL)
@@ -380,32 +374,36 @@ void write_file_anv(void)
     }    
     sdmmc_card_print_info(stdout, card);    // Card has been initialized, print its properties    
     ESP_LOGI(TAG, "Opening file");
-    FILE *f = fopen("/sdcard/hello.txt", "w"); // First create a file.
+    FILE *f = fopen("/sdcard/runtest.txt", "r"); // First create a file.
     if (f == NULL)
     {
         ESP_LOGE(TAG, "Failed to open file for writing");
-        return;
+        ESP_LOGE(TAG, "Create a new file");
+        f = fopen("/sdcard/runtest.txt", "w");
+        fprintf(f, "New running test! \n");        
+        fclose(f);
     }
     else
     {
-        ESP_LOGE(TAG, "File for writing is here!");
+        f = fopen("/sdcard/runtest.txt", "a");
+        ESP_LOGE(TAG, "Writing into the file!");
+        for (int z = 0; z < mlenght; z++)
+        {
+            fprintf(f, "value = %d; ", massive[z]);
+        }
+        fprintf(f, "\n");
     }
-    for (int z = 0; z < sizeof(massive) - 1; z++)
-    {
-        fprintf(f, "value = %d; ", massive[z]);
-    }
-
-        ESP_LOGI(TAG, "File written");
-
-        esp_vfs_fat_sdmmc_unmount();
-        ESP_LOGI(TAG, "Card unmounted");
+    fclose(f);
+    ESP_LOGI(TAG, "File written");
+    esp_vfs_fat_sdmmc_unmount();
+    ESP_LOGI(TAG, "Card unmounted");
     }
 
 void task_write_file(void *pvParameters)
 {    
     for (;;)
     {
-        write_a_file();
+        write_file_anv();
         vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
