@@ -46,114 +46,6 @@ unsigned long IRAM_ATTR millis()
     return xTaskGetTickCount() * portTICK_PERIOD_MS;
 }
 
-static int rng_func(uint8_t *dest, unsigned size)
-{
-
-    uint32_t rand = 0;
-    unsigned pos = 0;
-    uint8_t step = 0;
-    uint8_t rand8 = 0;
-
-    while (pos < size)
-    {
-        if (step >= 4)
-        {
-            step = 0;
-        }
-        if (step == 0)
-        {
-            rand = esp_random();
-            // ESP_LOGI(TAG, "rand 0x%08X",rand);
-        }
-        // faster then 8*step ?
-        switch (step)
-        {
-        case 0:
-            rand8 = rand & 0xFF;
-            break;
-        case 1:
-            rand8 = (rand >> 8) & 0xFF;
-            break;
-        case 2:
-            rand8 = (rand >> 16) & 0xFF;
-            break;
-        case 3:
-            rand8 = (rand >> 24) & 0xFF;
-            break;
-        }
-        // ESP_LOGI(TAG, "%d) rand 8 0x%02X",pos,rand8);
-        *dest++ = rand8;
-        step++;
-        pos++;
-    }
-
-    return 1; // random data was generated
-}
-
-void testFileIO(const char *filename, uint32_t bufsize)
-{
-    FILE *f;
-    static uint8_t buf[MAX_BUFSIZE];
-    size_t len = 0;
-    uint32_t start = millis();
-    uint32_t end = start;
-    uint32_t loops;
-    struct stat _stat;
-
-    if (bufsize > MAX_BUFSIZE)
-    {
-        bufsize = MAX_BUFSIZE;
-    }
-    rng_func(buf, bufsize);
-
-    f = fopen(filename, "w");
-    if (!f)
-    {
-        ESP_LOGE(TAG, "Failed to open file for writing");
-        return;
-    }
-
-    size_t i;
-    loops = 1048576 / bufsize;
-    // ESP_LOGI(TAG,"loops %u bufsize (%d)", loops, bufsize);
-
-    start = millis();
-    for (i = 0; i < loops; i++)
-    {
-        fwrite(buf, bufsize, 1, f);
-    }
-    end = millis() - start;
-    ESP_LOGI(TAG, "%u bytes (%u) written in %u ms", loops * bufsize, bufsize, end);
-    fclose(f);
-
-    f = fopen(filename, "r");
-    if (f)
-    {
-        stat(filename, &_stat);
-
-        len = _stat.st_size;
-        size_t flen = len;
-        start = millis();
-        while (len)
-        {
-            size_t toRead = len;
-            if (toRead > bufsize)
-            {
-                toRead = bufsize;
-            }
-            fread(buf, toRead, 1, f);
-            len -= toRead;
-        }
-        end = millis() - start;
-        ESP_LOGI(TAG, "%u bytes read in %u ms", flen, end);
-        fclose(f);
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Failed to open file for reading");
-    }
-}
-
 void write_a_file(void)
 {
     ESP_LOGI(TAG, "Initializing SD card");
@@ -300,12 +192,7 @@ void write_a_file(void)
             printf("[%s] FILE %ld\n", pDirent->d_name, _stat.st_size);
         }
     }
-    closedir(pDir);
-    testFileIO("/sdcard/TEST.txt", 512);
-    testFileIO("/sdcard/TEST.txt", 1024);
-    testFileIO("/sdcard/TEST.txt", 2048);
-    testFileIO("/sdcard/TEST.txt", 8192);
-    testFileIO("/sdcard/TEST.txt", 16384);
+    closedir(pDir);    
     // All done, unmount partition and disable SDMMC or SPI peripheral
     esp_vfs_fat_sdmmc_unmount();
     ESP_LOGI(TAG, "Card unmounted");
@@ -349,11 +236,7 @@ void write_file_anv(void)
     // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
 #endif //USE_SPI_MODE
 
-    // Options for mounting the filesystem.
-    // If format_if_mount_failed is set to true, SD card will be partitioned and
-    // formatted in case when mounting fails.
-    // max_files Max number of open files
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {.format_if_mount_failed = false, .max_files = 5};
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {.format_if_mount_failed = false, .max_files = 5}; // Options for mounting the filesystem
     sdmmc_card_t *card; // Use settings defined above to initialize SD card and mount FAT filesystem.
     esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
     

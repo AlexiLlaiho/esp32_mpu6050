@@ -54,8 +54,8 @@ static char tag[] = "mpu6050";
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-void task_mpu6050(void *ignore);
+    
+    void task_mpu6050(void *ignore);
 
 #ifdef __cplusplus
 }

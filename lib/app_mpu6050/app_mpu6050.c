@@ -9,6 +9,8 @@ void I2C_Conf(void);
 void MPU6050_Conf(uint8_t Reg_Addr, int Value);
 void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ);
 void Only_Read_One_Byte(uint8_t Reg_Number);
+int row_data_massive(int16_t *mas_name, int16_t *ac_x, int16_t *ac_y, int16_t *ac_z, int16_t *g_x, int16_t *g_y, int16_t *g_z);
+void switch_massives(uint16_t *iterator);
 
 uint8_t data[14];
 uint8_t Set_Data[3];
@@ -39,8 +41,10 @@ int16_t* pSensor_Yg;
 int16_t* pSensor_Zg; //pointers
 float Divider = 10;
 float calib_gyro_xf, calib_gyro_yf, calib_gyro_zf;
-float mpu_data_array_0[999], mpu_data_array_1[999], mpu_data_array_3[999];
-int mpu_array_lenght = sizeof(mpu_data_array_0) / sizeof(mpu_data_array_0[0]);
+int16_t mpu_data_array_0[1200], mpu_data_array_1[1200], mpu_data_array_3[1200];
+int16_t mpu_array_lenght = sizeof(mpu_data_array_0) / sizeof(mpu_data_array_0[0]);
+bool massive_1_flag = false;
+bool massive_2_flag = false;
 
 void task_mpu6050(void *ignore)
 {
@@ -70,15 +74,10 @@ void task_mpu6050(void *ignore)
 	ESP_ERROR_CHECK(i2c_master_stop(cmd));
 	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
-
 	
-	MPU6050_Conf(0x1A, 0x04); //Preconfigured DLPF
-	// Only_Read_One_Byte(0x1A);
-	MPU6050_Conf(0x1B, 0x18); //Preconfigured Accelerometer_Range
-	// Only_Read_One_Byte(0x1B);
+	MPU6050_Conf(0x1A, 0x04); //Preconfigured DLPF	
+	MPU6050_Conf(0x1B, 0x18); //Preconfigured Accelerometer_Range	
 	MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
-	// Only_Read_One_Byte(0x1C);
-	//Madgwick();
 	
 	pSensor_Xg = &Xg_Calib[0]; //передаем указателю нулевой адрес нулевого элемента массива
 	pSensor_Yg = &Yg_Calib[0];
@@ -101,14 +100,17 @@ void task_mpu6050(void *ignore)
 	printf("%f %f %f \n", calib_gyro_xf, calib_gyro_yf, calib_gyro_zf);
 	vTaskDelay(5000/portTICK_PERIOD_MS);
 
+	uint16_t n = 0;
 	while(1) 
 	{		
 		Get_Data_Accelerometer();
 		Get_Data_Gyro(&gyro_x, &gyro_y, &gyro_z);
 		Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
+		switch_massives(&n);
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
-		vTaskDelay(26/portTICK_PERIOD_MS);				
+		vTaskDelay(500/portTICK_PERIOD_MS);
+		++n;
 	}
 	vTaskDelete(NULL);
 } 
@@ -146,7 +148,6 @@ void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int1
   double Beta = (atan2( d_AcY, AcXZ )) * 57.295 + 1.0;
   double AcXY = (sqrt( pow(d_AcX, exponent) + pow(d_AcY, exponent) ) );
   double Tetta = (atan2( d_AcZ, AcXY )) * 57.295 ;
-//   printf("%f %f %f \n", Alpha, Beta, Tetta);
 
   if (Strp_Aq == 0) 
   {
@@ -163,11 +164,10 @@ void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int1
   Angle_GX =  Old_GX + convertRawGyro(GyX) * 0.02; // 0.02 = 50Hz
   Angle_GY =  Old_GY + convertRawGyro(GyY) * 0.02;
   Angle_GZ = convertRawGyro(GyZ) * 0.02;
-//   printf("%f   %f  \n", Angle_GX, Angle_GY);
 
   Angle_GX = ((1 - K) *( Angle_GX ) + (Beta * K));
   Angle_GY = ((1 - K) *( Angle_GY ) + (Alpha * K));
-  printf("%f   %f  %f \n", Angle_GX, Angle_GY, Angle_GZ); 
+  //printf("%f   %f  %f \n", Angle_GX, Angle_GY, Angle_GZ); 
 }
 
 void GPIO_Conf(){
@@ -260,8 +260,7 @@ void Get_Data_Accelerometer()
 
 		accel_x = (data[0] << 8) | data[1];
 		accel_y = (data[2] << 8) | data[3];
-		accel_z = (data[4] << 8) | data[5];
-		// printf("Ax = %f  Ay = %f  Az = %f  \n", d_accel_x, d_accel_y, d_accel_z);
+		accel_z = (data[4] << 8) | data[5];		
 }
 
 void Get_Data_Gyro(int16_t* Axes_X, int16_t* Axes_Y, int16_t* Axes_Z)
@@ -293,6 +292,54 @@ void Get_Data_Gyro(int16_t* Axes_X, int16_t* Axes_Y, int16_t* Axes_Z)
 	*Axes_X = ((data[8] << 8) | data[9]);// + 400;
 	*Axes_Y = ((data[10] << 8) | data[11]);// + 310;
 	*Axes_Z = ((data[12] << 8) | data[13]);// - 0;
-	
-	// printf("%d %d %d \n", Axe_1, Axe_2, Axe_3);
+}
+
+int row_data_massive(int16_t *mas_name, int16_t *ac_x, int16_t *ac_y, int16_t *ac_z, int16_t *g_x, int16_t *g_y, int16_t *g_z)
+{
+	int n = 1;
+	*mas_name = *ac_x;
+	*(mas_name + 1) = *ac_y;
+	*(mas_name + 2) = *ac_z;
+	*(mas_name + 3) = *g_x;
+	*(mas_name + 4) = *g_y;
+	*(mas_name + 5) = *g_z;
+
+	return n;
+}
+
+void switch_massives(uint16_t *iterator)
+{
+	uint16_t m_pointer = 6;
+	m_pointer *= *iterator; // calculate a new shift
+	if (m_pointer < mpu_array_lenght)
+	{		
+		if (!massive_1_flag || massive_2_flag)
+		{
+			row_data_massive(&mpu_data_array_0[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);
+			printf("%d %d %d %d %d %d \n", mpu_data_array_0[m_pointer],
+				   							mpu_data_array_0[m_pointer + 1],
+				   							mpu_data_array_0[m_pointer + 2],
+				   							mpu_data_array_0[m_pointer + 3],
+				   							mpu_data_array_0[m_pointer + 4],
+				   							mpu_data_array_0[m_pointer + 5]);
+			if (m_pointer == mpu_array_lenght)
+			{
+				massive_1_flag = true;
+				printf("First massive is full! \n");
+			}		
+		}
+		else if (massive_1_flag)
+		{
+			row_data_massive(&mpu_data_array_1[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);
+			if (m_pointer == mpu_array_lenght)
+			{
+				massive_2_flag = true;
+				printf("Second massive is full! \n");
+			}
+		}
+	}
+	else
+	{
+		*iterator = 0;		
+	}		
 }
