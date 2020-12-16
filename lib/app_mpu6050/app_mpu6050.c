@@ -42,7 +42,8 @@ int16_t* pSensor_Zg; //pointers
 float Divider = 10;
 float calib_gyro_xf, calib_gyro_yf, calib_gyro_zf;
 int16_t mpu_data_array_0[1200], mpu_data_array_1[1200], mpu_data_array_3[1200];
-int16_t mpu_array_lenght = sizeof(mpu_data_array_0) / sizeof(mpu_data_array_0[0]);
+uint16_t *p_array_0 = &mpu_data_array_0, *p_array_1 = &mpu_data_array_1;
+uint16_t mpu_array_lenght = sizeof(mpu_data_array_0) / sizeof(mpu_data_array_0[0]);
 bool massive_1_flag = false;
 bool massive_2_flag = false;
 
@@ -109,7 +110,7 @@ void task_mpu6050(void *ignore)
 		switch_massives(&n);
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
-		vTaskDelay(500/portTICK_PERIOD_MS);
+		vTaskDelay(100/portTICK_PERIOD_MS);
 		++n;
 	}
 	vTaskDelete(NULL);
@@ -315,26 +316,25 @@ void switch_massives(uint16_t *iterator)
 	{		
 		if (!massive_1_flag || massive_2_flag)
 		{
-			row_data_massive(&mpu_data_array_0[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);
-			printf("%d %d %d %d %d %d \n", mpu_data_array_0[m_pointer],
-				   							mpu_data_array_0[m_pointer + 1],
-				   							mpu_data_array_0[m_pointer + 2],
-				   							mpu_data_array_0[m_pointer + 3],
-				   							mpu_data_array_0[m_pointer + 4],
-				   							mpu_data_array_0[m_pointer + 5]);
+			printf("Writing in 1 massive ");
+			printf("m_pointer = %u", m_pointer);
+			row_data_massive(&mpu_data_array_0[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);		
 			if (m_pointer == mpu_array_lenght)
 			{
 				massive_1_flag = true;
 				printf("First massive is full! \n");
+				massive_2_flag = false;
 			}		
 		}
-		else if (massive_1_flag)
+		else(massive_1_flag)
 		{
+			printf("Writing in 2 massive \n");
 			row_data_massive(&mpu_data_array_1[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);
 			if (m_pointer == mpu_array_lenght)
 			{
 				massive_2_flag = true;
 				printf("Second massive is full! \n");
+				massive_1_flag = false;
 			}
 		}
 	}

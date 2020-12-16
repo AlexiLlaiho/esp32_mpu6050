@@ -17,6 +17,7 @@
 #include "driver/sdmmc_host.h"
 #include "driver/sdspi_host.h"
 #include "sdmmc_cmd.h"
+#include "app_mpu6050.h"
 
 static const char *TAG = "example";
 
@@ -198,6 +199,16 @@ void write_a_file(void)
     ESP_LOGI(TAG, "Card unmounted");
 }
 
+void write_data_to_file(FILE *f_file, const char *mountpl, uint16_t array_len, uint16_t *num_array)
+{
+    f_file = fopen(mountpl, "a");
+    for (int z = 0; z < array_len; z++)
+    {
+        fprintf(f_file, "value = %d; ", *(num_array + z));
+    }
+    fprintf(f_file, "\n");
+}
+
 void write_file_anv(void)
 {
     ESP_LOGI(TAG, "Initializing SD card");
@@ -255,32 +266,30 @@ void write_file_anv(void)
         }
         return;
     }    
-    sdmmc_card_print_info(stdout, card);    // Card has been initialized, print its properties    
+    sdmmc_card_print_info(stdout, card);    // Card has been initialized, print its properties
     ESP_LOGI(TAG, "Opening file");
     FILE *f = fopen("/sdcard/runtest.txt", "r"); // First create a file.
     if (f == NULL)
-    {
-        ESP_LOGE(TAG, "Failed to open file for writing");
+    {        
         ESP_LOGE(TAG, "Create a new file");
         f = fopen("/sdcard/runtest.txt", "w");
-        fprintf(f, "New running test! \n");        
+        fprintf(f, "New running test! \n");
         fclose(f);
     }
     else
     {
-        f = fopen("/sdcard/runtest.txt", "a");
-        ESP_LOGE(TAG, "Writing into the file!");
-        for (int z = 0; z < mlenght; z++)
-        {
-            fprintf(f, "value = %d; ", massive[z]);
+        if (massive_1_flag){
+            write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_0);
         }
-        fprintf(f, "\n");
-    }
-    fclose(f);
+        else if (massive_2_flag){
+            write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_1);
+        }
+        fclose(f);
+    }    
     ESP_LOGI(TAG, "File written");
     esp_vfs_fat_sdmmc_unmount();
     ESP_LOGI(TAG, "Card unmounted");
-    }
+}
 
 void task_write_file(void *pvParameters)
 {    
