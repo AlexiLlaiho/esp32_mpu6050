@@ -10,7 +10,7 @@ void MPU6050_Conf(uint8_t Reg_Addr, int Value);
 void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ);
 void Only_Read_One_Byte(uint8_t Reg_Number);
 int row_data_massive(int16_t *mas_name, int16_t *ac_x, int16_t *ac_y, int16_t *ac_z, int16_t *g_x, int16_t *g_y, int16_t *g_z);
-void switch_massives(uint16_t *iterator);
+uint8_t switch_massives(uint16_t *iterator);
 
 uint8_t data[14];
 uint8_t Set_Data[3];
@@ -107,11 +107,11 @@ void task_mpu6050(void *ignore)
 		Get_Data_Accelerometer();
 		Get_Data_Gyro(&gyro_x, &gyro_y, &gyro_z);
 		Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
-		switch_massives(&n);
+		if(switch_massives(&n) != 1)
+			n++;
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
-		vTaskDelay(100/portTICK_PERIOD_MS);
-		++n;
+		vTaskDelay(350/portTICK_PERIOD_MS);		
 	}
 	vTaskDelete(NULL);
 } 
@@ -308,38 +308,43 @@ int row_data_massive(int16_t *mas_name, int16_t *ac_x, int16_t *ac_y, int16_t *a
 	return n;
 }
 
-void switch_massives(uint16_t *iterator)
+uint8_t switch_massives(uint16_t *iterator)
 {
 	uint16_t m_pointer = 6;
+	uint8_t state = 0;
 	m_pointer *= *iterator; // calculate a new shift
-	if (m_pointer < mpu_array_lenght)
-	{		
+	if (m_pointer <= mpu_array_lenght)
+	{
 		if (!massive_1_flag || massive_2_flag)
 		{
 			printf("Writing in 1 massive ");
-			printf("m_pointer = %u", m_pointer);
-			row_data_massive(&mpu_data_array_0[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);		
+			printf(" m_pointer = %u \n", m_pointer);
 			if (m_pointer == mpu_array_lenght)
 			{
 				massive_1_flag = true;
 				printf("First massive is full! \n");
 				massive_2_flag = false;
-			}		
+				*iterator = 0;
+				state = 1;
+			}
+			printf("Writing in mpu_data_array_0[m_pointer] \n");
+			row_data_massive(&mpu_data_array_0[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);
 		}
-		else(massive_1_flag)
+		else
 		{
-			printf("Writing in 2 massive \n");
-			row_data_massive(&mpu_data_array_1[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);
+			printf("Writing in 2 massive ");
+			printf(" m_pointer = %u \n", m_pointer);
 			if (m_pointer == mpu_array_lenght)
 			{
 				massive_2_flag = true;
 				printf("Second massive is full! \n");
 				massive_1_flag = false;
+				*iterator = 0;
+				state = 1;
 			}
+			printf("Writing in mpu_data_array_0[m_pointer] \n");
+			row_data_massive(&mpu_data_array_1[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);
 		}
 	}
-	else
-	{
-		*iterator = 0;		
-	}		
+	return state;
 }
