@@ -209,12 +209,10 @@ void write_data_to_file(FILE *f_file, const char *mountpl, uint16_t array_len, u
     fprintf(f_file, "\n");
 }
 
-void write_file_anv(void)
+uint8_t sd_card_init(void)
 {
-    ESP_LOGI(TAG, "Initializing SD card");
-    int massive[] = {0, 1, 2, 3, 4, 5, 6}; //test array
-    int mlenght = sizeof(massive) / sizeof(massive[0]);
-    printf("mlenght = %d \n", mlenght);
+    uint8_t sd_status;
+    ESP_LOGI(TAG, "Initializing SD card");    
 #ifndef USE_SPI_MODE
     ESP_LOGI(TAG, "Using SDMMC peripheral");
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
@@ -248,9 +246,9 @@ void write_file_anv(void)
 #endif //USE_SPI_MODE
 
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {.format_if_mount_failed = false, .max_files = 5}; // Options for mounting the filesystem
-    sdmmc_card_t *card; // Use settings defined above to initialize SD card and mount FAT filesystem.
+    sdmmc_card_t *card;                                                                                // Use settings defined above to initialize SD card and mount FAT filesystem.
     esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
-    
+
     if (ret != ESP_OK)
     {
         if (ret == ESP_FAIL)
@@ -264,9 +262,22 @@ void write_file_anv(void)
                           "Make sure SD card lines have pull-up resistors in place.",
                      ret);
         }
-        return;
-    }    
-    sdmmc_card_print_info(stdout, card);    // Card has been initialized, print its properties
+        sd_status = 0; // it means that we've got a problem with sd_card
+    }
+    else
+    {
+        sdmmc_card_print_info(stdout, card); // Card has been initialized, print its properties
+        sd_status = 1;
+    }
+    return sd_status;
+}
+
+void write_file_anv(void)
+{
+    uint8_t mas_1[] = {1, 3, 5, 7, 9, 11, 13, 15, 17};
+    uint8_t mas_2[] = {2, 4, 6, 8, 10, 12, 14, 16, 18};
+    uint8_t mas_len = sizeof(mas_1) / sizeof(mas_1[0]);
+
     ESP_LOGI(TAG, "Opening file");
     FILE *f = fopen("/sdcard/runtest.txt", "r"); // First create a file.
     if (f == NULL)
@@ -279,10 +290,24 @@ void write_file_anv(void)
     else
     {
         if (massive_1_flag){
-            write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_0);
+            printf("Writing in 1 massive \n");
+            f = fopen("/sdcard/runtest.txt", "a");
+            for (int z = 0; z < mpu_array_lenght; z++)
+            {
+                fprintf(f, "value = %d; ", *(p_array_0 + z));
+            }
+            fprintf(f, "\n");
+            //write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_0);
         }
         else if (massive_2_flag){
-            write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_1);
+            printf("Writing in 2 massive \n");
+            f = fopen("/sdcard/runtest.txt", "a");
+            for (int z = 0; z < mpu_array_lenght; z++)
+            {
+                fprintf(f, "value = %d; ", *(p_array_1 + z));
+            }
+            fprintf(f, "\n");
+            //write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_1);            
         }
         fclose(f);
     }    
@@ -292,11 +317,16 @@ void write_file_anv(void)
 }
 
 void task_write_file(void *pvParameters)
-{    
+{
+    sd_card_init();
+    // {
+    //     printf("Trying to initialize sd_card... \n");
+    //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // }    
     for (;;)
-    {
+    {        
         write_file_anv();
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }

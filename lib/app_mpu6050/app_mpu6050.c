@@ -111,7 +111,7 @@ void task_mpu6050(void *ignore)
 			n++;
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
-		vTaskDelay(350/portTICK_PERIOD_MS);		
+		vTaskDelay(150/portTICK_PERIOD_MS);		
 	}
 	vTaskDelete(NULL);
 } 
@@ -316,8 +316,7 @@ uint8_t switch_massives(uint16_t *iterator)
 	if (m_pointer <= mpu_array_lenght)
 	{
 		if (!massive_1_flag || massive_2_flag)
-		{
-			printf("Writing in 1 massive ");
+		{			
 			printf(" m_pointer = %u \n", m_pointer);
 			if (m_pointer == mpu_array_lenght)
 			{
@@ -331,8 +330,7 @@ uint8_t switch_massives(uint16_t *iterator)
 			row_data_massive(&mpu_data_array_0[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);
 		}
 		else
-		{
-			printf("Writing in 2 massive ");
+		{			
 			printf(" m_pointer = %u \n", m_pointer);
 			if (m_pointer == mpu_array_lenght)
 			{
@@ -342,7 +340,7 @@ uint8_t switch_massives(uint16_t *iterator)
 				*iterator = 0;
 				state = 1;
 			}
-			printf("Writing in mpu_data_array_0[m_pointer] \n");
+			printf("Writing in mpu_data_array_1[m_pointer] \n");
 			row_data_massive(&mpu_data_array_1[m_pointer], &accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z);
 		}
 	}
