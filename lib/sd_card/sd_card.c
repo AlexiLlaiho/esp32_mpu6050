@@ -42,7 +42,10 @@ static const char *TAG = "example";
 #define MAX_BUFSIZE 16384
 #endif //USE_SPI_MODE
 
-unsigned long IRAM_ATTR millis()
+FILE *f;
+
+unsigned long IRAM_ATTR
+millis()
 {
     return xTaskGetTickCount() * portTICK_PERIOD_MS;
 }
@@ -272,48 +275,72 @@ uint8_t sd_card_init(void)
     return sd_status;
 }
 
+void check_a_file(void)
+{
+    ESP_LOGI(TAG, "Opening file");
+    f = fopen("/sdcard/runtest.txt", "w"); // First create a file.
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG, "Create a new file");
+        // f = fopen("/sdcard/runtest.txt", "w");
+        // fprintf(f, "New running test! \n");
+        // fclose(f);
+    }
+    fclose(f);
+}
+
 void write_file_anv(void)
 {
     uint8_t mas_1[] = {1, 3, 5, 7, 9, 11, 13, 15, 17};
     uint8_t mas_2[] = {2, 4, 6, 8, 10, 12, 14, 16, 18};
     uint8_t mas_len = sizeof(mas_1) / sizeof(mas_1[0]);
 
-    ESP_LOGI(TAG, "Opening file");
-    FILE *f = fopen("/sdcard/runtest.txt", "r"); // First create a file.
-    if (f == NULL)
-    {        
-        ESP_LOGE(TAG, "Create a new file");
-        f = fopen("/sdcard/runtest.txt", "w");
-        fprintf(f, "New running test! \n");
-        fclose(f);
-    }
-    else
+    if (massive_1_flag)
     {
-        if (massive_1_flag){
-            printf("Writing in 1 massive \n");
-            f = fopen("/sdcard/runtest.txt", "a");
-            for (int z = 0; z < mpu_array_lenght; z++)
+        f = fopen("/sdcard/runtest.txt", "a");
+        if (f == NULL)
+        {
+            printf("Can't adding into file! \n");
+            vTaskDelay(5000 / portTICK_PERIOD_MS);
+        }
+        else
+        {
+            fprintf(f, "Writing 1-st massive \n");
+            for (uint8_t z = 0; z < mas_len; z++)
             {
-                fprintf(f, "value = %d; ", *(p_array_0 + z));
+
+                fprintf(f, "value = %d; ", *(mas_1 + z));
+                printf("massive iterator is = %u \n", z);
+                vTaskDelay(100 / portTICK_PERIOD_MS);
             }
             fprintf(f, "\n");
             //write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_0);
+            fclose(f);
+            ESP_LOGI(TAG, "File written");
+            // esp_vfs_fat_sdmmc_unmount();
+            // ESP_LOGI(TAG, "Card unmounted");
         }
-        else if (massive_2_flag){
+    }
+    else if (false)
+    {
+        f = fopen("/sdcard/runtest.txt", "a");
+        if (f == NULL)
+        {
+            printf("Can't adding into file! \n");
+            vTaskDelay(5000 / portTICK_PERIOD_MS);
+        }
+        else
+        {
             printf("Writing in 2 massive \n");
-            f = fopen("/sdcard/runtest.txt", "a");
-            for (int z = 0; z < mpu_array_lenght; z++)
+            for (int z = 0; z < mas_len; z++)
             {
-                fprintf(f, "value = %d; ", *(p_array_1 + z));
+                fprintf(f, "%d; ", *(mas_2 + z));
             }
             fprintf(f, "\n");
-            //write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_1);            
+            //write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_1);
+            fclose(f);
         }
-        fclose(f);
-    }    
-    ESP_LOGI(TAG, "File written");
-    esp_vfs_fat_sdmmc_unmount();
-    ESP_LOGI(TAG, "Card unmounted");
+    }
 }
 
 void task_write_file(void *pvParameters)
@@ -322,11 +349,12 @@ void task_write_file(void *pvParameters)
     // {
     //     printf("Trying to initialize sd_card... \n");
     //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // }    
+    // }
+    check_a_file();
     for (;;)
     {        
         write_file_anv();
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }
