@@ -107,11 +107,11 @@ void task_mpu6050(void *ignore)
 		Get_Data_Accelerometer();
 		Get_Data_Gyro(&gyro_x, &gyro_y, &gyro_z);
 		Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
-		if(switch_massives(&n) != 1)
-			n++;
+		// if(switch_massives(&n) != 1)
+		// 	n++;
 		gpio_set_level(GPIO_NUM_19, Pin_Level);
 		Pin_Level = !Pin_Level;
-		vTaskDelay(150/portTICK_PERIOD_MS);		
+		vTaskDelay(25/portTICK_PERIOD_MS);		
 	}
 	vTaskDelete(NULL);
 } 
@@ -168,7 +168,7 @@ void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int1
 
   Angle_GX = ((1 - K) *( Angle_GX ) + (Beta * K));
   Angle_GY = ((1 - K) *( Angle_GY ) + (Alpha * K));
-  //printf("%f   %f  %f \n", Angle_GX, Angle_GY, Angle_GZ); 
+  printf("%f   %f  %f \n", Angle_GX, Angle_GY, Angle_GZ); 
 }
 
 void GPIO_Conf(){
