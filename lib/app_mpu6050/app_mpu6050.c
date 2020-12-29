@@ -49,9 +49,10 @@ bool massive_2_flag = false;
 
 void task_mpu6050(void *ignore)
 {
-	GPIO_Conf();
+	// GPIO_Conf();
 	ESP_LOGD(tag, ">> mpu6050");
-	I2C_Conf();
+	// I2C_Conf();
+	i2c_idf_init();
 	Only_Read_One_Byte(0x75);
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	if (cmd == NULL){
@@ -171,28 +172,15 @@ void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int1
   printf("%f   %f  %f \n", Angle_GX, Angle_GY, Angle_GZ); 
 }
 
-void GPIO_Conf(){
-	gpio_config_t GPIO_Conf;
-	GPIO_Conf.pin_bit_mask = GPIO_SEL_19;
-	GPIO_Conf.mode = GPIO_MODE_OUTPUT;
-	GPIO_Conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-	GPIO_Conf.pull_up_en = GPIO_PULLUP_ENABLE;
-	GPIO_Conf.intr_type = GPIO_INTR_DISABLE;
-	gpio_config(&GPIO_Conf);
-}
-
-void I2C_Conf(){
-	i2c_config_t conf;
-	conf.mode = I2C_MODE_MASTER;
-	conf.sda_io_num = PIN_SDA;
-	conf.scl_io_num = PIN_CLK;
-	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.master.clk_speed = 100000;
-	ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
-	ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
-
-}
+// void GPIO_Conf(){
+// 	gpio_config_t GPIO_Conf;
+// 	GPIO_Conf.pin_bit_mask = GPIO_SEL_19;
+// 	GPIO_Conf.mode = GPIO_MODE_OUTPUT;
+// 	GPIO_Conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+// 	GPIO_Conf.pull_up_en = GPIO_PULLUP_ENABLE;
+// 	GPIO_Conf.intr_type = GPIO_INTR_DISABLE;
+// 	gpio_config(&GPIO_Conf);
+// }
 
 void MPU6050_Conf(uint8_t Reg_Addr, int Value)
 {

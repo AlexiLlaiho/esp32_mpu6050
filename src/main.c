@@ -30,24 +30,13 @@ esp_err_t event_handler(void *ctx, system_event_t *event)
 
 void app_main(void) 
 {
-	gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
+	//gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
 	//xTaskCreatePinnedToCore(&vTask2, "vTask2", 1024, NULL, 5, NULL, 0);
-	xTaskCreatePinnedToCore(&task_mpu6050, "task_mpu6050", 4096, NULL, 1, NULL, 0);
+	//xTaskCreatePinnedToCore(&task_mpu6050, "task_mpu6050", 4096, NULL, 1, NULL, 0);
+	xTaskCreatePinnedToCore(&task_qmc5883l, "task_qmc5883l", 4096, NULL, 1, NULL, 0);
 	// xTaskCreatePinnedToCore(&task_write_file, "task_write_file", 8192, NULL, 3, NULL, 1);
 	// xTaskCreatePinnedToCore(&mcpwm_example_servo_control, "mcpwm_example_servo_control", 2048, NULL, 4, NULL, 0);
-	// i2c_setup();
-	// hmc5883l_init();
-	// if(qmc5883_test() == 0xFF)
-	// 	printf("QMC5883L was founded!");
-	// else
-	// {
-	// 	for (;;)
-	// 	{}
-	// }	
-	// while (1)
-	// {
-	// 	qmc5883_data();
-	// }
+
 
 	ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
 }

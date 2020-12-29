@@ -38,17 +38,6 @@ uint8_t data[6];
         }                                          \
     } while (0);
 
-void gpio_conf()
-{
-    gpio_config_t GPIO_Conf;
-    GPIO_Conf.pin_bit_mask = GPIO_SEL_19;
-    GPIO_Conf.mode = GPIO_MODE_OUTPUT;
-    GPIO_Conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    GPIO_Conf.pull_up_en = GPIO_PULLUP_ENABLE;
-    GPIO_Conf.intr_type = GPIO_INTR_DISABLE;
-    gpio_config(&GPIO_Conf);
-}
-
 void i2c_setup()
 {
     ESP_LOGD(tag, ">> hmc5883l");
@@ -65,73 +54,51 @@ void i2c_setup()
 
 void hmc5883l_init()
 {
-    i2c_cmd_handle_t cmd;
     //Set value in "Configuration Register 1"
-    cmd = i2c_cmd_link_create();
-    if (cmd == NULL)
-    {
-        printf("Memory_allocated \n");
-        while (1);
-    }
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1);
-    i2c_master_write_byte(cmd, QMC5883L_CONFIG, 1); // 0x02 = "Mode register"
-    i2c_master_write_byte(cmd, QMC5883L_MODE_50HZ, 1); // 0x00 = "Continuous-Measurement Mode"
-    i2c_master_stop(cmd);
-    i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    uint8_t settings[] = {0x09, 0x1D};
+
+    ESP_ERROR_CHECK(i2c_master_start(cmd));
+    ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));    
+    ESP_ERROR_CHECK(i2c_master_write(cmd, settings, 2, 1));
+    ESP_ERROR_CHECK(i2c_master_stop(cmd));
+    ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 10 / portTICK_PERIOD_MS));
     i2c_cmd_link_delete(cmd);
 
+    uint8_t settings_2[] = {0x0B, 0x01};
     //Set value in "Configuration Register 2"
-    cmd = i2c_cmd_link_create();
-    if (cmd == NULL)
-    {
-        printf("Memory_allocated \n");
-        while (1);
-    }
+    cmd = i2c_cmd_link_create();   
     i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1);
-    i2c_master_write_byte(cmd, QMC5883L_CONFIG2, 1);
-    i2c_master_write_byte(cmd, QMC5883L_ROL_PNT, 1); // the I2C data pointer automatically rolls between 00H ~ 06H
+    i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1);    
+    i2c_master_write(cmd, settings_2, 2, 1); // the I2C data pointer automatically rolls between 00H ~ 06H
     i2c_master_stop(cmd);
-    i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS);
-    i2c_cmd_link_delete(cmd);    
+    i2c_master_cmd_begin(I2C_NUM_0, cmd, 10 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
 }
 
-uint8_t qmc5883_test()
+void qmc5883_test()
 {
-    //Test type "Who_am_I?"
-    i2c_cmd_handle_t constr;
-    uint8_t name = 0;
-    constr = i2c_cmd_link_create();
-    if (constr == NULL)
-    {
-        printf("Memory_allocated \n");
-        while (1);
-    }
+    uint8_t test_q[] = {0x0D, 0x00, 0xFF};
+    i2c_cmd_handle_t constr = i2c_cmd_link_create();
     ESP_ERROR_CHECK(i2c_master_start(constr));
     ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
-    ESP_ERROR_CHECK(i2c_master_write_byte(constr, QMC5883L_CHIP_ID, 1)); //0x0D = "ChipIDRegister"
+    ESP_ERROR_CHECK(i2c_master_write(constr, test_q, 1, 1));
     ESP_ERROR_CHECK(i2c_master_stop(constr));
-    ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 100 / portTICK_PERIOD_MS));
+    ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
     i2c_cmd_link_delete(constr);
 
-    //Get data from chip identification register. It returns 0xFF
+    uint8_t Mein_Name_ist;
+
     constr = i2c_cmd_link_create();
-    if (constr == NULL)
-    {
-        printf("Memory_allocated \n");
-        while (1);
-    }
     ESP_ERROR_CHECK(i2c_master_start(constr));
-    ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
-    i2c_master_read_byte(constr, &name, 0);
+    ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1)); //start adress from CONFIG_REG
+    ESP_ERROR_CHECK(i2c_master_read_byte(constr, &Mein_Name_ist, 1));
     ESP_ERROR_CHECK(i2c_master_stop(constr));
-    ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 100 / portTICK_PERIOD_MS));
+    ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
     i2c_cmd_link_delete(constr);
-    printf("name is = %u", name);
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
-    
-    return name; //if we get a response type 0xFF, it means OK
+
+    printf("Value = %d \n", Mein_Name_ist);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
 void qmc5883_data()
@@ -163,5 +130,21 @@ void qmc5883_data()
     short z = data[3] << 8 | data[2];
     short y = data[5] << 8 | data[4];
     int angle = atan2((double)y, (double)x) * (180 / 3.14159265) + 180; // angle in degrees
-    ESP_LOGD(tag, "angle: %d, x: %d, y: %d, z: %d", angle, x, y, z);
+    printf("angle: %d, x: %d, y: %d, z: %d \n", angle, x, y, z);
+    //ESP_LOGD(tag, "angle: %d, x: %d, y: %d, z: %d", angle, x, y, z);
+}
+
+void task_qmc5883l(void *ignore)
+{
+    // i2c_setup();
+    i2c_idf_init();
+    qmc5883_test();
+    hmc5883l_init();
+
+    while (1)
+    {
+        qmc5883_data();
+        vTaskDelay(25 / portTICK_PERIOD_MS);
+    }
+    vTaskDelete(NULL);
 }

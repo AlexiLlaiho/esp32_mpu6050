@@ -18,11 +18,12 @@
 
 #include "freertos/FreeRTOS.h"
 #include <freertos/task.h>
-#include "driver/gpio.h"
-#include "driver/i2c.h"
+// #include "driver/gpio.h"
+// #include "driver/i2c.h"
 #include "esp_log.h"
 #include "MadgwickAHRS.h"
 #include <math.h>
+#include "i2c_driver.h"
 
 #define PIN_SDA 21
 #define PIN_CLK 22
