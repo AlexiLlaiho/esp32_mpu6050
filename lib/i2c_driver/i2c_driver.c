@@ -41,3 +41,25 @@ void i2c_read_data(uint8_t i2c_device_addr)
     i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
 }
+
+enum status_code
+{
+    i2c_ok,
+    i2c_error
+};
+
+void i2c_master_init()
+{
+    i2c_idf_init();
+}
+
+enum status_code i2c_master_write_packet_wait(struct i2c_master_packet *transfer)
+{
+    /* Do the transfer */
+
+}
+
+enum status_code i2c_master_read_packet_wait(struct i2c_master_packet *read_transfer)
+{
+    
+}
