@@ -13,13 +13,13 @@ void i2c_idf_init()
     ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
 }
 
-void i2c_write_addr(uint8_t i2c_device_addr, uint8_t i2c_device_reg)
+void i2c_write_addr(uint8_t *i2c_device_addr, uint8_t *mdata, uint8_t ldata)
 {
     i2c_cmd_handle_t cmd;
     cmd = i2c_cmd_link_create();
     ESP_ERROR_CHECK(i2c_master_start(cmd));
-    i2c_master_write_byte(cmd, (i2c_device_addr << 1) | I2C_MASTER_WRITE, 1);
-    i2c_master_write_byte(cmd, i2c_device_reg, 1); //0x00 = "Data Output X MSB Register"
+    i2c_master_write_byte(cmd, (*i2c_device_addr << 1) | I2C_MASTER_WRITE, 1);
+    i2c_master_write(cmd, mdata, ldata, 1); 
     i2c_master_stop(cmd);
     i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
@@ -42,24 +42,19 @@ void i2c_read_data(uint8_t i2c_device_addr)
     i2c_cmd_link_delete(cmd);
 }
 
-enum status_code
-{
-    i2c_ok,
-    i2c_error
-};
-
 void i2c_master_init()
 {
     i2c_idf_init();
-}
+}   
 
-enum status_code i2c_master_write_packet_wait(struct i2c_master_packet *transfer)
+enum status_code i2c_master_write_packet_wait(struct i2c_master_packet *p)
 {
-    /* Do the transfer */
-
+    /* Do the transfer */    
+    i2c_write_addr(&p->address, &p->data, &p->data_length);
+    return 0;
 }
 
 enum status_code i2c_master_read_packet_wait(struct i2c_master_packet *read_transfer)
 {
-    
+    return 0;    
 }

@@ -23,12 +23,24 @@
 #define PIN_SDA 21
 #define PIN_CLK 22
 
+struct i2c_master_packet {
+		uint8_t address;
+		uint8_t data_length;
+		uint8_t data;
+	};
+
+enum status_code{
+    STATUS_ERR_OVERFLOW,
+    STATUS_OK
+};
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
     void i2c_idf_init(void);
+	void i2c_write_addr(uint8_t *i2c_device_addr, uint8_t *mdata, uint8_t ldata);
 
 #ifdef __cplusplus
 }
