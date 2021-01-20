@@ -13,30 +13,31 @@ void i2c_idf_init()
     ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
 }
 
-void i2c_write_addr(uint8_t *i2c_device_addr, uint8_t *mdata, uint8_t ldata)
+void i2c_write_addr(uint8_t i2c_device_addr, uint8_t mdata, uint8_t ldata)
 {
     i2c_cmd_handle_t cmd;
     cmd = i2c_cmd_link_create();
     ESP_ERROR_CHECK(i2c_master_start(cmd));
-    i2c_master_write_byte(cmd, (*i2c_device_addr << 1) | I2C_MASTER_WRITE, 1);
+    i2c_master_write_byte(cmd, (i2c_device_addr << 1) | I2C_MASTER_WRITE, 1);
     i2c_master_write(cmd, mdata, ldata, 1); 
     i2c_master_stop(cmd);
     i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
 }
 
-void i2c_read_data(uint8_t i2c_device_addr)
+void i2c_read_data(uint8_t i2c_device_addr, uint8_t ldata)
 {
-    uint8_t data[] = {0, 0, 0, 0, 0, 0};
+    uint8_t data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     i2c_cmd_handle_t  cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (i2c_device_addr << 1) | I2C_MASTER_READ, 1);
-    i2c_master_read_byte(cmd, data, 0);     //"Data Output X MSB Register"
-    i2c_master_read_byte(cmd, data + 1, 0); //"Data Output X LSB Register"
-    i2c_master_read_byte(cmd, data + 2, 0); //"Data Output Z MSB Register"
-    i2c_master_read_byte(cmd, data + 3, 0); //"Data Output Z LSB Register"
-    i2c_master_read_byte(cmd, data + 4, 0); //"Data Output Y MSB Register"
-    i2c_master_read_byte(cmd, data + 5, 1); //"Data Output Y LSB Register "
+    for(uint8_t i = 0; i < ldata; i++) 
+    {
+        if(i != (ldata - 1))
+            i2c_master_read_byte(cmd, (data + i), 0);
+        else
+            i2c_master_read_byte(cmd, (data + i), 1);       
+    }
     i2c_master_stop(cmd);
     i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
@@ -48,13 +49,13 @@ void i2c_master_init()
 }   
 
 enum status_code i2c_master_write_packet_wait(struct i2c_master_packet *p)
-{
-    /* Do the transfer */    
+{   
     i2c_write_addr(&p->address, &p->data, &p->data_length);
     return 0;
 }
 
-enum status_code i2c_master_read_packet_wait(struct i2c_master_packet *read_transfer)
+enum status_code i2c_master_read_packet_wait(struct i2c_master_packet *r)
 {
+    i2c_read_data(&r->address, &r->data_length);
     return 0;    
 }

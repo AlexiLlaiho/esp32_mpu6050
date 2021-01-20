@@ -38,9 +38,12 @@ enum status_code{
 extern "C"
 {
 #endif
-
     void i2c_idf_init(void);
-	void i2c_write_addr(uint8_t *i2c_device_addr, uint8_t *mdata, uint8_t ldata);
+	void i2c_master_init(void);
+	void i2c_write_addr(uint8_t i2c_device_addr, uint8_t mdata, uint8_t ldata);
+	void i2c_read_data(uint8_t i2c_device_addr, uint8_t ldata);
+	enum status_code i2c_master_write_packet_wait(struct i2c_master_packet *p);
+	enum status_code i2c_master_read_packet_wait(struct i2c_master_packet *r);
 
 #ifdef __cplusplus
 }
