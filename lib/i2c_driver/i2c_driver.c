@@ -9,19 +9,19 @@ void i2c_idf_init()
     conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
     conf.master.clk_speed = 100000;
-    ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
-    ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
+    ESP_ERROR_CHECK( i2c_param_config(I2C_NUM_0, &conf) );
+    ESP_ERROR_CHECK( i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0) );
 }
 
 void i2c_write_addr(uint8_t i2c_device_addr, uint8_t mdata, uint8_t ldata)
 {
     i2c_cmd_handle_t cmd;
     cmd = i2c_cmd_link_create();
-    ESP_ERROR_CHECK(i2c_master_start(cmd));
-    i2c_master_write_byte(cmd, (i2c_device_addr << 1) | I2C_MASTER_WRITE, 1);
-    i2c_master_write(cmd, mdata, ldata, 1); 
-    i2c_master_stop(cmd);
-    i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS);
+    ESP_ERROR_CHECK( i2c_master_start(cmd) );
+    ESP_ERROR_CHECK( i2c_master_write_byte(cmd, (i2c_device_addr << 1) | I2C_MASTER_WRITE, 1) );
+    ESP_ERROR_CHECK( i2c_master_write(cmd, mdata, ldata, 1) ); 
+    ESP_ERROR_CHECK( i2c_master_stop(cmd) );
+    ESP_ERROR_CHECK( i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS) );
     i2c_cmd_link_delete(cmd);
 }
 

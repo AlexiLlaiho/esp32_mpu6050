@@ -10,6 +10,8 @@
 void task_ms5611(void *ignore)
 {
     //ESP_LOGD(tag, ">> ms5611");
+	ms5611_init();
+	
 
     while(1) 
 	{		
