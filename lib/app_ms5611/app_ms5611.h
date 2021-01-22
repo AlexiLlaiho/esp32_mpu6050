@@ -19,7 +19,6 @@
 #include "freertos/FreeRTOS.h"
 #include <freertos/task.h>
 #include "esp_log.h"
-#include "MadgwickAHRS.h"
 #include <math.h>
 #include "i2c_driver.h"
 #include "ms5611.h"

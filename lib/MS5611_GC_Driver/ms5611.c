@@ -237,8 +237,10 @@ enum ms5611_status ms5611_read_eeprom_coeff(uint8_t command, uint16_t *coeff)
 		
 	*coeff = (buffer[0] << 8) | buffer[1];
     
-    if (*coeff == 0)
-        return ms5611_status_i2c_transfer_error;
+    if(*coeff == 0)
+	{
+		return ms5611_status_i2c_transfer_error;
+	}        
 	
 	return ms5611_status_ok;	
 }
@@ -302,7 +304,7 @@ static enum ms5611_status ms5611_conversion_and_read_adc(uint8_t cmd, uint32_t *
 
 	status = ms5611_write_command(cmd);
 	// delay conversion depending on resolution
-	delay_ms( conversion_time[ (cmd & MS5611_CONVERSION_OSR_MASK)/2 ]/1000 );
+	/*delay_ms*/vTaskDelay( conversion_time[ (cmd & MS5611_CONVERSION_OSR_MASK)/2 ]/1000 );
 	if( status != ms5611_status_ok)
 		return status;
 
@@ -360,11 +362,15 @@ enum ms5611_status ms5611_read_temperature_and_pressure( float *temperature, flo
 	cmd |= MS5611_START_PRESSURE_ADC_CONVERSION;
 	status = ms5611_conversion_and_read_adc( cmd, &adc_pressure);
 	if( status != ms5611_status_ok)
+	{
 		return status;
+	}		
     
-    if (adc_temperature == 0 || adc_pressure == 0)
-        return ms5611_status_i2c_transfer_error;
-
+    if(adc_temperature == 0 || adc_pressure == 0)
+	{
+		return ms5611_status_i2c_transfer_error;
+	}
+        
 	// Difference between actual and reference temperature = D2 - Tref
 	dT = (int32_t)adc_temperature - ((int32_t)eeprom_coeff[MS5611_REFERENCE_TEMPERATURE_INDEX] <<8 );
 	

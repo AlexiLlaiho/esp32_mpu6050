@@ -57,7 +57,7 @@ extern uint16_t mpu_array_lenght;
 extern uint16_t *p_array_0, *p_array_1;
 
 #ifdef __cplusplus
-                                        extern "C" {
+extern "C" {
 #endif
     
     void task_mpu6050(void *ignore);

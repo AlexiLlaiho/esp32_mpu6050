@@ -15,6 +15,7 @@
 #include "sdkconfig.h"
 #include "sd_card.h"
 #include "qmc5883.h"
+#include "app_ms5611.h"
 
 #undef ESP_ERROR_CHECK
 #define ESP_ERROR_CHECK(x)   do { esp_err_t rc = (x); if (rc != ESP_OK) { ESP_LOGE("err", "esp_err_t = %d", rc); assert(0 && #x);} } while(0);
@@ -33,8 +34,9 @@ void app_main(void)
 	//gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
 	//xTaskCreatePinnedToCore(&vTask2, "vTask2", 1024, NULL, 5, NULL, 0);
 	//xTaskCreatePinnedToCore(&task_mpu6050, "task_mpu6050", 4096, NULL, 1, NULL, 0);
-	xTaskCreatePinnedToCore(&task_qmc5883l, "task_qmc5883l", 4096, NULL, 1, NULL, 0);
+	// xTaskCreatePinnedToCore(&task_qmc5883l, "task_qmc5883l", 4096, NULL, 1, NULL, 0);
 	// xTaskCreatePinnedToCore(&task_write_file, "task_write_file", 8192, NULL, 3, NULL, 1);
+	xTaskCreatePinnedToCore(&task_ms5611, "task_ms5611", 8192, NULL, 3, NULL, 1);
 	// xTaskCreatePinnedToCore(&mcpwm_example_servo_control, "mcpwm_example_servo_control", 2048, NULL, 4, NULL, 0);
 
 

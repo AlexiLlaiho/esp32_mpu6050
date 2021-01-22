@@ -51,11 +51,11 @@ void i2c_master_init()
 enum status_code i2c_master_write_packet_wait(struct i2c_master_packet *p)
 {   
     i2c_write_addr(&p->address, &p->data, &p->data_length);
-    return 0;
+    return 1;
 }
 
 enum status_code i2c_master_read_packet_wait(struct i2c_master_packet *r)
 {
     i2c_read_data(&r->address, &r->data_length);
-    return 0;    
+    return 1;    
 }
