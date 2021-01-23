@@ -15,11 +15,11 @@ void task_ms5611(void *ignore)
 	ms5611_init();
 	ms5611_is_connected();
 	ms5611_reset();
-	ms5611_set_resolution(ms5611_resolution_osr_4096);	
+	// ms5611_set_resolution(ms5611_resolution_osr_4096);	
 
     while(1) 
 	{		
-		ms5611_read_temperature_and_pressure(&temp_val, &press_val);
+		// ms5611_read_temperature_and_pressure(&temp_val, &press_val);
 		vTaskDelay(300/portTICK_PERIOD_MS);		
 	}
 	vTaskDelete(NULL);

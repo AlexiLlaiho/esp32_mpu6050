@@ -26,7 +26,7 @@
 struct i2c_master_packet {
 		uint8_t address;
 		uint8_t data_length;
-		uint8_t data;
+		uint8_t data[6];
 	};
 
 enum status_code{

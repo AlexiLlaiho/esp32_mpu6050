@@ -129,7 +129,7 @@ bool ms5611_is_connected(void)
 	struct i2c_master_packet transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 0,
-		.data        = NULL,
+		.data[0]        = 0,
 	};
 	/* Do the transfer */
 	i2c_status = i2c_master_write_packet_wait(&transfer);
@@ -184,7 +184,7 @@ enum ms5611_status ms5611_write_command( uint8_t cmd)
 	struct i2c_master_packet transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 1,
-		.data        = data,
+		.data[0]     = data,
 	};
 	/* Do the transfer */
 	i2c_status = i2c_master_write_packet_wait(&transfer);
@@ -221,7 +221,7 @@ enum ms5611_status ms5611_read_eeprom_coeff(uint8_t command, uint16_t *coeff)
 	struct i2c_master_packet read_transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 2,
-		.data        = buffer,
+		.data[0]        = buffer,
 	};
 	
 	// Send the conversion command
@@ -299,7 +299,7 @@ static enum ms5611_status ms5611_conversion_and_read_adc(uint8_t cmd, uint32_t *
     struct i2c_master_packet read_transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 3,
-		.data        = buffer,
+		.data[0]        = buffer,
 	};
 
 	status = ms5611_write_command(cmd);
