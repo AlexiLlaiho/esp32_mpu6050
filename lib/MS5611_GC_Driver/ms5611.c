@@ -184,8 +184,9 @@ enum ms5611_status ms5611_write_command( uint8_t cmd)
 	struct i2c_master_packet transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 1,
-		.data[0]     = data,
+		.data[0]     = cmd,
 	};
+	
 	/* Do the transfer */
 	i2c_status = i2c_master_write_packet_wait(&transfer);
 	if( i2c_status == STATUS_ERR_OVERFLOW )
