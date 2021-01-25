@@ -129,9 +129,10 @@ bool ms5611_is_connected(void)
 	struct i2c_master_packet transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 0,
-		.data[0]        = 0,
+		.p_buff        = NULL,
 	};
 	/* Do the transfer */
+	printf("func = ms5611_is_connected \n");
 	i2c_status = i2c_master_write_packet_wait(&transfer);
 	if( i2c_status != STATUS_OK)
 		return false;
@@ -177,15 +178,18 @@ void ms5611_set_resolution(enum ms5611_resolution_osr res)
 enum ms5611_status ms5611_write_command( uint8_t cmd)
 {
 	enum status_code i2c_status;
-	uint8_t data[1];
+	uint8_t data[1];	
 		
 	data[0] = cmd;
-		
+
 	struct i2c_master_packet transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 1,
-		.data[0]     = cmd,
+		.p_buff     = &data,
 	};
+	
+	printf("func = ms5611_write_command \n");
+	vTaskDelay(3000/portTICK_PERIOD_MS);
 	
 	/* Do the transfer */
 	i2c_status = i2c_master_write_packet_wait(&transfer);
@@ -222,15 +226,20 @@ enum ms5611_status ms5611_read_eeprom_coeff(uint8_t command, uint16_t *coeff)
 	struct i2c_master_packet read_transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 2,
-		.data[0]        = buffer,
+		.p_buff      = &buffer,
 	};
-	
+
+	printf("ms5611_read_eeprom_coeff \n");
 	// Send the conversion command
 	status = ms5611_write_command(command);
+	printf("Write command to EEPROM - OK! \n");
+	vTaskDelay(1000/portTICK_PERIOD_MS);
 	if(status != ms5611_status_ok)
 		return status;
 	
 	i2c_status = i2c_master_read_packet_wait(&read_transfer);
+	printf("Read command from EEPROM - OK! \n");
+	vTaskDelay(1000/portTICK_PERIOD_MS);
 	if( i2c_status == STATUS_ERR_OVERFLOW )
 		return ms5611_status_no_i2c_acknowledge;
 	if( i2c_status != STATUS_OK)
@@ -300,7 +309,7 @@ static enum ms5611_status ms5611_conversion_and_read_adc(uint8_t cmd, uint32_t *
     struct i2c_master_packet read_transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 3,
-		.data[0]        = buffer,
+		.p_buff      = &buffer,
 	};
 
 	status = ms5611_write_command(cmd);

@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
+#include "i2c_driver.h"
 
 enum ms5611_resolution_osr {
 	ms5611_resolution_osr_256 = 0,

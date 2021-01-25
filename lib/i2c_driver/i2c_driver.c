@@ -30,6 +30,7 @@ void i2c_write_addr(uint8_t i2c_device_addr, uint8_t *mdata, uint8_t ldata)
 
 void i2c_read_data(uint8_t i2c_device_addr, uint8_t ldata)
 {
+    printf("func = i2c_read_data \n");
     uint8_t data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     i2c_cmd_handle_t  cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -53,15 +54,15 @@ void i2c_master_init()
 
 enum status_code i2c_master_write_packet_wait(struct i2c_master_packet *p)
 {    
-    printf("ADDr = %u, Data = %p, Length = %u \n", p->address, p->data, p->data_length);
+    printf("write:ADDr = %u, Data = %p, Length = %u \n", p->address, &p->p_buff, p->data_length);
     vTaskDelay(3000/portTICK_PERIOD_MS);
-    i2c_write_addr(p->address, p->data, p->data_length);
+    i2c_write_addr(p->address, &p->p_buff, p->data_length);
     return STATUS_OK;
 }
 
 enum status_code i2c_master_read_packet_wait(struct i2c_master_packet *r)
 {
-    printf("ADDr = %u, Length = %u \n", r->address, r->data_length);
+    printf("read:ADDr = %u, Length = %u \n", r->address, r->data_length);
     vTaskDelay(3000/portTICK_PERIOD_MS);
     i2c_read_data(r->address, r->data_length);
     return 1;    
