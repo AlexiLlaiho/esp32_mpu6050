@@ -17,8 +17,7 @@ void i2c_write_addr(uint8_t i2c_device_addr, uint8_t *mdata, uint8_t ldata)
 {
     i2c_cmd_handle_t cmd;
     cmd = i2c_cmd_link_create();
-    ESP_ERROR_CHECK( i2c_master_start(cmd) );
-    vTaskDelay(5000/portTICK_PERIOD_MS);
+    ESP_ERROR_CHECK( i2c_master_start(cmd) );   
     ESP_ERROR_CHECK( i2c_master_write_byte(cmd, (i2c_device_addr << 1) | I2C_MASTER_WRITE, 1) );
     printf("Data = %p, Length = %u \n", mdata, ldata);
     vTaskDelay(3000/portTICK_PERIOD_MS);
@@ -40,7 +39,9 @@ void i2c_read_data(uint8_t i2c_device_addr, uint8_t ldata)
         if(i != (ldata - 1))
             i2c_master_read_byte(cmd, (data + i), 0);
         else
-            i2c_master_read_byte(cmd, (data + i), 1);       
+            i2c_master_read_byte(cmd, (data + i), 1);
+
+        printf("READ_DATA! RD = %u \n", *(data + i));       
     }
     i2c_master_stop(cmd);
     i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS);
@@ -54,9 +55,9 @@ void i2c_master_init()
 
 enum status_code i2c_master_write_packet_wait(struct i2c_master_packet *p)
 {    
-    printf("write:ADDr = %u, Data = %p, Length = %u \n", p->address, &p->p_buff, p->data_length);
+    printf("write:ADDr = %u, Data = %p, Length = %u \n", p->address, p->p_buff, p->data_length);
     vTaskDelay(3000/portTICK_PERIOD_MS);
-    i2c_write_addr(p->address, &p->p_buff, p->data_length);
+    i2c_write_addr(p->address, p->p_buff, p->data_length);
     return STATUS_OK;
 }
 

@@ -124,6 +124,8 @@ void ms5611_init(void)
   */
 bool ms5611_is_connected(void)
 {
+	uint8_t i2c_device_addr = MS5611_ADDR;
+	uint8_t data[] = {0x00, 0x00, 0xFF};
 	enum status_code i2c_status;
 	
 	struct i2c_master_packet transfer = {
@@ -133,10 +135,19 @@ bool ms5611_is_connected(void)
 	};
 	/* Do the transfer */
 	printf("func = ms5611_is_connected \n");
-	i2c_status = i2c_master_write_packet_wait(&transfer);
-	if( i2c_status != STATUS_OK)
-		return false;
-	
+	// i2c_status = i2c_master_write_packet_wait(&transfer);
+	// if( i2c_status != STATUS_OK)
+	// 	return false;
+
+	i2c_cmd_handle_t cmd;
+    cmd = i2c_cmd_link_create();
+    ESP_ERROR_CHECK( i2c_master_start(cmd) );   
+    ESP_ERROR_CHECK( i2c_master_write_byte(cmd, (i2c_device_addr << 1) | I2C_MASTER_WRITE, 1) );
+    ESP_ERROR_CHECK( i2c_master_write(cmd, data, 1, 1) ); 
+    ESP_ERROR_CHECK( i2c_master_stop(cmd) );
+    ESP_ERROR_CHECK( i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS) );
+    i2c_cmd_link_delete(cmd);
+
 	return true;
 }
 	
@@ -150,7 +161,19 @@ bool ms5611_is_connected(void)
  */
 enum ms5611_status  ms5611_reset(void)
 {
-	return ms5611_write_command(MS5611_RESET_COMMAND);
+	// return ms5611_write_command(MS5611_RESET_COMMAND);
+	uint8_t I2C_ADDRESS = MS5611_ADDR;
+	
+	uint8_t test_q[] = {MS5611_RESET_COMMAND, 0x00, 0xFF};
+    i2c_cmd_handle_t constr = i2c_cmd_link_create();
+    ESP_ERROR_CHECK(i2c_master_start(constr));
+    ESP_ERROR_CHECK(i2c_master_write_byte(constr, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+    ESP_ERROR_CHECK(i2c_master_write(constr, test_q, 1, 1));
+    ESP_ERROR_CHECK(i2c_master_stop(constr));
+    ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
+    i2c_cmd_link_delete(constr);
+
+	return 1;
 }
 
 /**
@@ -185,7 +208,7 @@ enum ms5611_status ms5611_write_command( uint8_t cmd)
 	struct i2c_master_packet transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 1,
-		.p_buff     = &data,
+		.p_buff     = data,
 	};
 	
 	printf("func = ms5611_write_command \n");
@@ -226,7 +249,7 @@ enum ms5611_status ms5611_read_eeprom_coeff(uint8_t command, uint16_t *coeff)
 	struct i2c_master_packet read_transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 2,
-		.p_buff      = &buffer,
+		.p_buff      = buffer,
 	};
 
 	printf("ms5611_read_eeprom_coeff \n");
@@ -237,13 +260,21 @@ enum ms5611_status ms5611_read_eeprom_coeff(uint8_t command, uint16_t *coeff)
 	if(status != ms5611_status_ok)
 		return status;
 	
-	i2c_status = i2c_master_read_packet_wait(&read_transfer);
-	printf("Read command from EEPROM - OK! \n");
-	vTaskDelay(1000/portTICK_PERIOD_MS);
-	if( i2c_status == STATUS_ERR_OVERFLOW )
-		return ms5611_status_no_i2c_acknowledge;
-	if( i2c_status != STATUS_OK)
-		return ms5611_status_i2c_transfer_error;
+	// i2c_status = i2c_master_read_packet_wait(&read_transfer);
+	// printf("Read command from EEPROM - OK! \n");
+	// vTaskDelay(1000/portTICK_PERIOD_MS);
+	// if( i2c_status == STATUS_ERR_OVERFLOW )
+	// 	return ms5611_status_no_i2c_acknowledge;
+	// if( i2c_status != STATUS_OK)
+	// 	return ms5611_status_i2c_transfer_error;
+	i2c_cmd_handle_t constr = i2c_cmd_link_create();
+    ESP_ERROR_CHECK(i2c_master_start(constr));
+    ESP_ERROR_CHECK(i2c_master_write_byte(constr, (read_transfer.address << 1) | I2C_MASTER_READ, 1)); //start adress from CONFIG_REG
+    ESP_ERROR_CHECK(i2c_master_read_byte(constr, read_transfer.p_buff, 0));     
+    ESP_ERROR_CHECK(i2c_master_read_byte(constr, read_transfer.p_buff + 1, 0)); 
+    ESP_ERROR_CHECK(i2c_master_stop(constr));
+    ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
+    i2c_cmd_link_delete(constr);
 		
 	*coeff = (buffer[0] << 8) | buffer[1];
     
@@ -309,7 +340,7 @@ static enum ms5611_status ms5611_conversion_and_read_adc(uint8_t cmd, uint32_t *
     struct i2c_master_packet read_transfer = {
 		.address     = MS5611_ADDR,
 		.data_length = 3,
-		.p_buff      = &buffer,
+		.p_buff      = buffer,
 	};
 
 	status = ms5611_write_command(cmd);
@@ -323,12 +354,23 @@ static enum ms5611_status ms5611_conversion_and_read_adc(uint8_t cmd, uint32_t *
 	if( status != ms5611_status_ok)
 		return status;
 	
-    i2c_status = i2c_master_read_packet_wait(&read_transfer);
-	if( i2c_status == STATUS_ERR_OVERFLOW )
-		return ms5611_status_no_i2c_acknowledge;
-	if( i2c_status != STATUS_OK)
-		return ms5611_status_i2c_transfer_error;
+    // i2c_status = i2c_master_read_packet_wait(&read_transfer);
+	// if( i2c_status == STATUS_ERR_OVERFLOW )
+	// 	return ms5611_status_no_i2c_acknowledge;
+	// if( i2c_status != STATUS_OK)
+	// 	return ms5611_status_i2c_transfer_error;
+	i2c_cmd_handle_t cons;
+	cons = i2c_cmd_link_create();
+    ESP_ERROR_CHECK(i2c_master_start(cons));
+    ESP_ERROR_CHECK(i2c_master_write_byte(cons, (read_transfer.address << 1) | I2C_MASTER_READ, 1));
+    ESP_ERROR_CHECK(i2c_master_read_byte(cons, buffer, 0));     //"Data Output X MSB Register"
+    ESP_ERROR_CHECK(i2c_master_read_byte(cons, buffer + 1, 0)); //"Data Output X LSB Register"
+    ESP_ERROR_CHECK(i2c_master_read_byte(cons, buffer + 2, 1)); //"Data Output Z MSB Register"
+    ESP_ERROR_CHECK(i2c_master_stop(cons));
+    ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cons, 1000 / portTICK_PERIOD_MS));
+    i2c_cmd_link_delete(cons);
 
+	printf("conversion_and_read_adc: %u, %u, %u \n", buffer[0], buffer[1], buffer[2]);
 	*adc = ((uint32_t)buffer[0] << 16) | ((uint32_t)buffer[1] << 8) | buffer[2];
 	
 	return status;
@@ -386,7 +428,7 @@ enum ms5611_status ms5611_read_temperature_and_pressure( float *temperature, flo
 	
 	// Actual temperature = 2000 + dT * TEMPSENS
 	TEMP = 2000 + ((int64_t)dT * (int64_t)eeprom_coeff[MS5611_TEMP_COEFF_OF_TEMPERATURE_INDEX] >> 23) ;
-	
+	printf("TEMP = %i \n", TEMP);
 	// Second order temperature compensation
 	if( TEMP < 2000 )
 	{
@@ -417,7 +459,7 @@ enum ms5611_status ms5611_read_temperature_and_pressure( float *temperature, flo
 	
 	// Temperature compensated pressure = D1 * SENS - OFF
 	P = ( ( (adc_pressure * SENS) >> 21 ) - OFF ) >> 15 ;
-	
+	printf("PRESSURE = %lld \n", P);
 	*temperature = ( (float)TEMP - T2 ) / 100;
 	*pressure = (float)P / 100;
 	
