@@ -31,6 +31,7 @@ void i2c_read_data(uint8_t i2c_device_addr, uint8_t ldata)
 {
     printf("func = i2c_read_data \n");
     uint8_t data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    
     i2c_cmd_handle_t  cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (i2c_device_addr << 1) | I2C_MASTER_READ, 1);

@@ -133,8 +133,7 @@ bool ms5611_is_connected(void)
 		.data_length = 0,
 		.p_buff        = NULL,
 	};
-	/* Do the transfer */
-	printf("func = ms5611_is_connected \n");
+	/* Do the transfer */	
 	// i2c_status = i2c_master_write_packet_wait(&transfer);
 	// if( i2c_status != STATUS_OK)
 	// 	return false;
@@ -211,17 +210,14 @@ enum ms5611_status ms5611_write_command( uint8_t cmd)
 		.p_buff     = data,
 	};
 	
-	printf("func = ms5611_write_command \n");
-	vTaskDelay(3000/portTICK_PERIOD_MS);
-	
 	/* Do the transfer */
 	i2c_status = i2c_master_write_packet_wait(&transfer);
-	if( i2c_status == STATUS_ERR_OVERFLOW )
-		return ms5611_status_no_i2c_acknowledge;
-	if( i2c_status != STATUS_OK)
-		return ms5611_status_i2c_transfer_error;
+	// if( i2c_status == STATUS_ERR_OVERFLOW )
+	// 	return ms5611_status_no_i2c_acknowledge;
+	// if( i2c_status != STATUS_OK)
+	// 	return ms5611_status_i2c_transfer_error;
 	
-	return ms5611_status_ok;
+	return ms5611_status_ok;	
 }
 
 /**
@@ -251,12 +247,10 @@ enum ms5611_status ms5611_read_eeprom_coeff(uint8_t command, uint16_t *coeff)
 		.data_length = 2,
 		.p_buff      = buffer,
 	};
-
-	printf("ms5611_read_eeprom_coeff \n");
+	
 	// Send the conversion command
 	status = ms5611_write_command(command);
-	printf("Write command to EEPROM - OK! \n");
-	vTaskDelay(1000/portTICK_PERIOD_MS);
+	printf("Write command to EEPROM - OK! \n");	
 	if(status != ms5611_status_ok)
 		return status;
 	
@@ -271,7 +265,7 @@ enum ms5611_status ms5611_read_eeprom_coeff(uint8_t command, uint16_t *coeff)
     ESP_ERROR_CHECK(i2c_master_start(constr));
     ESP_ERROR_CHECK(i2c_master_write_byte(constr, (read_transfer.address << 1) | I2C_MASTER_READ, 1)); //start adress from CONFIG_REG
     ESP_ERROR_CHECK(i2c_master_read_byte(constr, read_transfer.p_buff, 0));     
-    ESP_ERROR_CHECK(i2c_master_read_byte(constr, read_transfer.p_buff + 1, 0)); 
+    ESP_ERROR_CHECK(i2c_master_read_byte(constr, read_transfer.p_buff + 1, 1)); 
     ESP_ERROR_CHECK(i2c_master_stop(constr));
     ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
     i2c_cmd_link_delete(constr);
@@ -302,6 +296,7 @@ enum ms5611_status ms5611_read_eeprom(void)
 	
 	for( i=0 ; i< MS5611_COEFFICIENT_NUMBERS ; i++)
 	{
+		printf("EEPROM_ADDR = %x \n", MS5611_PROM_ADDRESS_READ_ADDRESS_0 + i*2);
 		status = ms5611_read_eeprom_coeff( MS5611_PROM_ADDRESS_READ_ADDRESS_0 + i*2, eeprom_coeff+i);
 		if(status != ms5611_status_ok)
 			return status;
@@ -331,7 +326,8 @@ static enum ms5611_status ms5611_conversion_and_read_adc(uint8_t cmd, uint32_t *
 	enum ms5611_status status;
 	enum status_code i2c_status;
 	uint8_t buffer[3];
-	
+	uint8_t I2C_ADDRESS = MS5611_ADDR;
+
 	buffer[0] = 0;
 	buffer[1] = 0;
 	buffer[2] = 0;
@@ -362,7 +358,7 @@ static enum ms5611_status ms5611_conversion_and_read_adc(uint8_t cmd, uint32_t *
 	i2c_cmd_handle_t cons;
 	cons = i2c_cmd_link_create();
     ESP_ERROR_CHECK(i2c_master_start(cons));
-    ESP_ERROR_CHECK(i2c_master_write_byte(cons, (read_transfer.address << 1) | I2C_MASTER_READ, 1));
+    ESP_ERROR_CHECK(i2c_master_write_byte(cons, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
     ESP_ERROR_CHECK(i2c_master_read_byte(cons, buffer, 0));     //"Data Output X MSB Register"
     ESP_ERROR_CHECK(i2c_master_read_byte(cons, buffer + 1, 0)); //"Data Output X LSB Register"
     ESP_ERROR_CHECK(i2c_master_read_byte(cons, buffer + 2, 1)); //"Data Output Z MSB Register"
@@ -372,7 +368,8 @@ static enum ms5611_status ms5611_conversion_and_read_adc(uint8_t cmd, uint32_t *
 
 	printf("conversion_and_read_adc: %u, %u, %u \n", buffer[0], buffer[1], buffer[2]);
 	*adc = ((uint32_t)buffer[0] << 16) | ((uint32_t)buffer[1] << 8) | buffer[2];
-	
+	printf("Conversion Result = %i \n", ((int32_t)buffer[0] << 16) | ((int32_t)buffer[1] << 8) | buffer[2]);
+
 	return status;
 }
 
@@ -402,21 +399,23 @@ enum ms5611_status ms5611_read_temperature_and_pressure( float *temperature, flo
 	if( status != ms5611_status_ok)
 		return status;
 	
-	// First read temperature
-	cmd = ms5611_resolution_osr*2;
-	cmd |= MS5611_START_TEMPERATURE_ADC_CONVERSION;
-	status = ms5611_conversion_and_read_adc( cmd, &adc_temperature);
-	if( status != ms5611_status_ok)
-		return status;
-
-	// Now read pressure
+	// First read pressure
 	cmd = ms5611_resolution_osr*2;
 	cmd |= MS5611_START_PRESSURE_ADC_CONVERSION;
+	printf("Read PRESSURE param = %x \n", cmd);
 	status = ms5611_conversion_and_read_adc( cmd, &adc_pressure);
 	if( status != ms5611_status_ok)
 	{
 		return status;
-	}		
+	}
+
+	// Now read temperature
+	cmd = ms5611_resolution_osr*2;
+	cmd |= MS5611_START_TEMPERATURE_ADC_CONVERSION;
+	printf("Read TEMPERATURE param = %x \n", cmd);
+	status = ms5611_conversion_and_read_adc( cmd, &adc_temperature);
+	if( status != ms5611_status_ok)
+		return status;			
     
     if(adc_temperature == 0 || adc_pressure == 0)
 	{

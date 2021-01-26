@@ -13,7 +13,7 @@ void task_ms5611(void *ignore)
 	float press_val = 0.0;
     //ESP_LOGD(tag, ">> ms5611");
 	ms5611_init();
-	ms5611_is_connected();
+	ms5611_is_connected();	
 	ms5611_reset();
 	ms5611_set_resolution(ms5611_resolution_osr_256);	
 
