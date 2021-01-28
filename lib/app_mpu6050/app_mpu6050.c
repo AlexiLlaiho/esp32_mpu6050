@@ -3,7 +3,7 @@
 double convertRawAcceleration(int16_t aRaw);
 double convertRawGyro(int16_t gRaw);
 void GPIO_Conf(void);
-void Get_Data_Accelerometer(void);
+void Get_Data_Accelerometer(int16_t *acc_x, int16_t *acc_y, int16_t *acc_z);
 void Get_Data_Gyro(int16_t* Axes_X, int16_t* Axes_Y, int16_t* Axes_Z);
 void I2C_Conf(void);
 void MPU6050_Conf(uint8_t Reg_Addr, int Value);
@@ -11,11 +11,12 @@ void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int1
 void Only_Read_One_Byte(uint8_t Reg_Number);
 int row_data_massive(int16_t *mas_name, int16_t *ac_x, int16_t *ac_y, int16_t *ac_z, int16_t *g_x, int16_t *g_y, int16_t *g_z);
 uint8_t switch_massives(uint16_t *iterator);
+void mpu60xx_preconf(void);
 
 uint8_t data[14];
 uint8_t Set_Data[3];
-int16_t accel_x, accel_y, accel_z;
-int16_t gyro_x, gyro_y, gyro_z;
+int16_t accel_x = 0, accel_y = 0, accel_z = 0;
+int16_t gyro_x = 0, gyro_y = 0, gyro_z = 0;
 int16_t Gyro_Data;
 int16_t calib_gyro_x, calib_gyro_y, calib_gyro_z;
 int Pin_Level = 0;
@@ -30,12 +31,8 @@ double K = 0.02;
 double Old_GX;
 double Old_GY;
 double exponent = 2.0;
-int16_t Xa_Calib[100]; /* data */
-int16_t Ya_Calib[100]; /* data */
-int16_t Za_Calib[100]; /* data */
-int16_t Xg_Calib[100]; /* data */
-int16_t Yg_Calib[100]; /* data */
-int16_t Zg_Calib[100]; /* data */
+int16_t Xa_Calib[100], Ya_Calib[100], Za_Calib[100]; /* data */
+int16_t Xg_Calib[100], Yg_Calib[100], Zg_Calib[100]; /* data */
 int16_t* pSensor_Xg; 
 int16_t* pSensor_Yg; 
 int16_t* pSensor_Zg; //pointers
@@ -49,69 +46,13 @@ bool massive_2_flag = false;
 
 void task_mpu6050(void *ignore)
 {
-	// GPIO_Conf();
-	ESP_LOGD(tag, ">> mpu6050");
-	// I2C_Conf();
 	i2c_idf_init();
-	Only_Read_One_Byte(0x75);
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-	if (cmd == NULL){
-		printf("Memory_allocated \n");
-		while(1);
-	}
-	
-	cmd = i2c_cmd_link_create();
-	ESP_ERROR_CHECK(i2c_master_start(cmd));
-	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
-	i2c_master_write_byte(cmd, MPU6050_ACCEL_XOUT_H, 1);
-	ESP_ERROR_CHECK(i2c_master_stop(cmd));
-	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS);
-	i2c_cmd_link_delete(cmd);
-
-	cmd = i2c_cmd_link_create();
-	ESP_ERROR_CHECK(i2c_master_start(cmd));
-	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
-	i2c_master_write_byte(cmd, MPU6050_PWR_MGMT_1, 1);
-	i2c_master_write_byte(cmd, 0, 1);
-	ESP_ERROR_CHECK(i2c_master_stop(cmd));
-	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS);
-	i2c_cmd_link_delete(cmd);
-	
-	MPU6050_Conf(0x1A, 0x04); //Preconfigured DLPF	
-	MPU6050_Conf(0x1B, 0x18); //Preconfigured Accelerometer_Range	
-	MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
-	
-	pSensor_Xg = &Xg_Calib[0]; //передаем указателю нулевой адрес нулевого элемента массива
-	pSensor_Yg = &Yg_Calib[0];
-	pSensor_Zg = &Zg_Calib[0];
-
-	for(uint8_t i = 0; i < 10; i++)
-	{
-		Get_Data_Gyro(pSensor_Xg + i, pSensor_Yg + i, pSensor_Zg + i);
-		calib_gyro_x += *(pSensor_Xg + i);
-		calib_gyro_y += *(pSensor_Yg + i);
-		calib_gyro_z += *(pSensor_Zg + i);
-		// printf("%d %d %d \n", Xg_Calib[i], Yg_Calib[i], Zg_Calib[i]);
-		vTaskDelay(1000/portTICK_PERIOD_MS);
-	}	
- 
-	calib_gyro_xf = calib_gyro_x / Divider;
-	calib_gyro_yf = calib_gyro_y / Divider;
-	calib_gyro_zf = calib_gyro_z / Divider;
-	printf("Calibration Result: \n");
-	printf("%f %f %f \n", calib_gyro_xf, calib_gyro_yf, calib_gyro_zf);
-	vTaskDelay(5000/portTICK_PERIOD_MS);
-
-	uint16_t n = 0;
+	mpu60xx_preconf();
 	while(1) 
 	{		
-		Get_Data_Accelerometer();
+		Get_Data_Accelerometer(&accel_x, &accel_y, &accel_z);
 		Get_Data_Gyro(&gyro_x, &gyro_y, &gyro_z);
 		Alpha_Betta_Filter(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
-		// if(switch_massives(&n) != 1)
-		// 	n++;
-		gpio_set_level(GPIO_NUM_19, Pin_Level);
-		Pin_Level = !Pin_Level;
 		vTaskDelay(25/portTICK_PERIOD_MS);		
 	}
 	vTaskDelete(NULL);
@@ -172,16 +113,6 @@ void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int1
   printf("%f   %f  %f \n", Angle_GX, Angle_GY, Angle_GZ); 
 }
 
-// void GPIO_Conf(){
-// 	gpio_config_t GPIO_Conf;
-// 	GPIO_Conf.pin_bit_mask = GPIO_SEL_19;
-// 	GPIO_Conf.mode = GPIO_MODE_OUTPUT;
-// 	GPIO_Conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-// 	GPIO_Conf.pull_up_en = GPIO_PULLUP_ENABLE;
-// 	GPIO_Conf.intr_type = GPIO_INTR_DISABLE;
-// 	gpio_config(&GPIO_Conf);
-// }
-
 void MPU6050_Conf(uint8_t Reg_Addr, int Value)
 {
 	i2c_cmd_handle_t constr = i2c_cmd_link_create();
@@ -214,11 +145,11 @@ void Only_Read_One_Byte(uint8_t Reg_Number){
 	ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, constr, 1000 / portTICK_PERIOD_MS));
 	i2c_cmd_link_delete(constr);
 
-	printf("Reg_Number = %d  Value = %d \n", Reg_Number, Mein_Name_ist);
-	vTaskDelay(1000 / portTICK_PERIOD_MS);	
+	// printf("Reg_Number = %d  Value = %d \n", Reg_Number, Mein_Name_ist);
+	// vTaskDelay(1000 / portTICK_PERIOD_MS);	
 }
 
-void Get_Data_Accelerometer()
+void Get_Data_Accelerometer(int16_t *acc_x, int16_t *acc_y, int16_t *acc_z)
 {
 	// Tell the MPU6050 to position the internal register pointer to register
 		// MPU6050_ACCEL_XOUT_H.
@@ -231,12 +162,11 @@ void Get_Data_Accelerometer()
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
 		i2c_cmd_link_delete(cmd);
 
-		i2c_set_timeout(I2C_NUM_0, 400000); //- it gives a possible to get data
+		// i2c_set_timeout(I2C_NUM_0, 400000); //- it gives a possible to get data
 	
 		cmd = i2c_cmd_link_create();
 		ESP_ERROR_CHECK(i2c_master_start(cmd));
 		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_READ, 1));
-
 		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data,   0)); // X-High
 		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+1, 0)); // X-Low
 		ESP_ERROR_CHECK(i2c_master_read_byte(cmd, data+2, 0)); // Y-High
@@ -247,9 +177,9 @@ void Get_Data_Accelerometer()
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
 		i2c_cmd_link_delete(cmd);
 
-		accel_x = (data[0] << 8) | data[1];
-		accel_y = (data[2] << 8) | data[3];
-		accel_z = (data[4] << 8) | data[5];		
+		*acc_x = (data[0] << 8) | data[1];
+		*acc_y = (data[2] << 8) | data[3];
+		*acc_z = (data[4] << 8) | data[5];		
 }
 
 void Get_Data_Gyro(int16_t* Axes_X, int16_t* Axes_Y, int16_t* Axes_Z)
@@ -333,4 +263,57 @@ uint8_t switch_massives(uint16_t *iterator)
 		}
 	}
 	return state;
+}
+
+void mpu60xx_preconf()
+{
+	ESP_LOGD(tag, ">> mpu6050");
+	
+	Only_Read_One_Byte(0x75);
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+	if (cmd == NULL){
+		printf("Memory_allocated \n");
+		while(1);
+	}
+	
+	cmd = i2c_cmd_link_create();
+	ESP_ERROR_CHECK(i2c_master_start(cmd));
+	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+	i2c_master_write_byte(cmd, MPU6050_ACCEL_XOUT_H, 1);
+	ESP_ERROR_CHECK(i2c_master_stop(cmd));
+	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS);
+	i2c_cmd_link_delete(cmd);
+
+	cmd = i2c_cmd_link_create();
+	ESP_ERROR_CHECK(i2c_master_start(cmd));
+	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
+	i2c_master_write_byte(cmd, MPU6050_PWR_MGMT_1, 1);
+	i2c_master_write_byte(cmd, 0, 1);
+	ESP_ERROR_CHECK(i2c_master_stop(cmd));
+	i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS);
+	i2c_cmd_link_delete(cmd);
+	
+	MPU6050_Conf(0x1A, 0x04); //Preconfigured DLPF	
+	MPU6050_Conf(0x1B, 0x18); //Preconfigured Accelerometer_Range	
+	MPU6050_Conf(0x1C, 0x10); //Preconfigured Gyro_Range
+	
+	pSensor_Xg = &Xg_Calib[0]; //передаем указателю нулевой адрес нулевого элемента массива
+	pSensor_Yg = &Yg_Calib[0];
+	pSensor_Zg = &Zg_Calib[0];
+
+	for(uint8_t i = 0; i < 10; i++)
+	{
+		Get_Data_Gyro(pSensor_Xg + i, pSensor_Yg + i, pSensor_Zg + i);
+		calib_gyro_x += *(pSensor_Xg + i);
+		calib_gyro_y += *(pSensor_Yg + i);
+		calib_gyro_z += *(pSensor_Zg + i);		
+		vTaskDelay(1000/portTICK_PERIOD_MS);
+	}	
+ 
+	calib_gyro_xf = calib_gyro_x / Divider;
+	calib_gyro_yf = calib_gyro_y / Divider;
+	calib_gyro_zf = calib_gyro_z / Divider;
+	printf("MPU 60x0 calibration Result: \n");
+	printf("%f %f %f \n", calib_gyro_xf, calib_gyro_yf, calib_gyro_zf);
+	vTaskDelay(5000/portTICK_PERIOD_MS);
 }

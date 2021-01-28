@@ -249,8 +249,7 @@ enum ms5611_status ms5611_read_eeprom_coeff(uint8_t command, uint16_t *coeff)
 	};
 	
 	// Send the conversion command
-	status = ms5611_write_command(command);
-	printf("Write command to EEPROM - OK! \n");	
+	status = ms5611_write_command(command);		
 	if(status != ms5611_status_ok)
 		return status;
 	
@@ -271,7 +270,8 @@ enum ms5611_status ms5611_read_eeprom_coeff(uint8_t command, uint16_t *coeff)
     i2c_cmd_link_delete(constr);
 		
 	*coeff = (buffer[0] << 8) | buffer[1];
-    
+    // printf("Coefficient = %u \n", ((buffer[0] << 8) | buffer[1]) );
+	
     if(*coeff == 0)
 	{
 		return ms5611_status_i2c_transfer_error;
@@ -295,8 +295,7 @@ enum ms5611_status ms5611_read_eeprom(void)
 	uint8_t i;
 	
 	for( i=0 ; i< MS5611_COEFFICIENT_NUMBERS ; i++)
-	{
-		printf("EEPROM_ADDR = %x \n", MS5611_PROM_ADDRESS_READ_ADDRESS_0 + i*2);
+	{		
 		status = ms5611_read_eeprom_coeff( MS5611_PROM_ADDRESS_READ_ADDRESS_0 + i*2, eeprom_coeff+i);
 		if(status != ms5611_status_ok)
 			return status;
@@ -366,9 +365,9 @@ static enum ms5611_status ms5611_conversion_and_read_adc(uint8_t cmd, uint32_t *
     ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cons, 1000 / portTICK_PERIOD_MS));
     i2c_cmd_link_delete(cons);
 
-	printf("conversion_and_read_adc: %u, %u, %u \n", buffer[0], buffer[1], buffer[2]);
+	// printf("conversion_and_read_adc: %u, %u, %u \n", buffer[0], buffer[1], buffer[2]);
 	*adc = ((uint32_t)buffer[0] << 16) | ((uint32_t)buffer[1] << 8) | buffer[2];
-	printf("Conversion Result = %i \n", ((int32_t)buffer[0] << 16) | ((int32_t)buffer[1] << 8) | buffer[2]);
+	// printf("Conversion Result = %i \n", ((int32_t)buffer[0] << 16) | ((int32_t)buffer[1] << 8) | buffer[2]);
 
 	return status;
 }
@@ -402,7 +401,7 @@ enum ms5611_status ms5611_read_temperature_and_pressure( float *temperature, flo
 	// First read pressure
 	cmd = ms5611_resolution_osr*2;
 	cmd |= MS5611_START_PRESSURE_ADC_CONVERSION;
-	printf("Read PRESSURE param = %x \n", cmd);
+	// printf("Read PRESSURE param = %x \n", cmd);
 	status = ms5611_conversion_and_read_adc( cmd, &adc_pressure);
 	if( status != ms5611_status_ok)
 	{
@@ -412,7 +411,7 @@ enum ms5611_status ms5611_read_temperature_and_pressure( float *temperature, flo
 	// Now read temperature
 	cmd = ms5611_resolution_osr*2;
 	cmd |= MS5611_START_TEMPERATURE_ADC_CONVERSION;
-	printf("Read TEMPERATURE param = %x \n", cmd);
+	// printf("Read TEMPERATURE param = %x \n", cmd);
 	status = ms5611_conversion_and_read_adc( cmd, &adc_temperature);
 	if( status != ms5611_status_ok)
 		return status;			
@@ -427,7 +426,7 @@ enum ms5611_status ms5611_read_temperature_and_pressure( float *temperature, flo
 	
 	// Actual temperature = 2000 + dT * TEMPSENS
 	TEMP = 2000 + ((int64_t)dT * (int64_t)eeprom_coeff[MS5611_TEMP_COEFF_OF_TEMPERATURE_INDEX] >> 23) ;
-	printf("TEMP = %i \n", TEMP);
+	// printf("TEMP = %i \n", TEMP);
 	// Second order temperature compensation
 	if( TEMP < 2000 )
 	{
@@ -458,10 +457,11 @@ enum ms5611_status ms5611_read_temperature_and_pressure( float *temperature, flo
 	
 	// Temperature compensated pressure = D1 * SENS - OFF
 	P = ( ( (adc_pressure * SENS) >> 21 ) - OFF ) >> 15 ;
-	printf("PRESSURE = %lld \n", P);
+	// printf("PRESSURE = %lld \n", P);
 	*temperature = ( (float)TEMP - T2 ) / 100;
-	*pressure = (float)P / 100;
-	
+	// *pressure = (float)P / 100;
+	*pressure = (float)P / 1;
+
 	return status;
 }
 
@@ -499,6 +499,19 @@ bool ms5611_crc_check (uint16_t *n_prom, uint8_t crc)
     n_rem ^= 0x00;
         
 	return  ( n_rem == crc );
+}
+
+/**
+ * \brief // Calculate altitude from Pressure & level pressure at the start point
+ *
+ * \param[in] float : 
+ * \param[in] float : crc to compare with
+ *
+ * \return float : 
+ */
+float getAltitude(float pressure, float seaLevelPressure)
+{
+    return (44330.0f * (1.0f - powf(pressure / seaLevelPressure, 0.1902949f)));
 }
 
 #ifdef __cplusplus

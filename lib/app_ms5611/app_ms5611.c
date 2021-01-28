@@ -11,17 +11,19 @@ void task_ms5611(void *ignore)
 {
 	float temp_val = 0.0;
 	float press_val = 0.0;
-    //ESP_LOGD(tag, ">> ms5611");
+	float stp_press_val = 0.0; //start point pressure value
+	    
 	ms5611_init();
-	ms5611_is_connected();	
-	ms5611_reset();
-	ms5611_set_resolution(ms5611_resolution_osr_256);	
+	ms5611_is_connected();
+	ms5611_set_resolution(ms5611_resolution_osr_4096);	
+	ms5611_reset();		
+	ms5611_read_temperature_and_pressure(&temp_val, &stp_press_val);
 
     while(1) 
 	{		
 		ms5611_read_temperature_and_pressure(&temp_val, &press_val);
-		printf("Temp = %f, Pressure = %f \n", temp_val, press_val);
-		vTaskDelay(300/portTICK_PERIOD_MS);		
+		// printf("Pressure = %f \n", press_val);		
+		printf("Pressure = %f \n", getAltitude(press_val, stp_press_val));		
 	}
 	vTaskDelete(NULL);
 

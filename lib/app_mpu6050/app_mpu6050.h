@@ -61,6 +61,11 @@ extern "C" {
 #endif
     
     void task_mpu6050(void *ignore);
+    void mpu60xx_preconf(void);
+    void Get_Data_Accelerometer(int16_t *acc_x, int16_t *acc_y, int16_t *acc_z);
+    void Get_Data_Gyro(int16_t* Axes_X, int16_t* Axes_Y, int16_t* Axes_Z);
+    void Alpha_Betta_Filter(int16_t AcX, int16_t AcY, int16_t AcZ, int16_t GyX, int16_t GyY, int16_t GyZ);
+
 
 #ifdef __cplusplus
 }

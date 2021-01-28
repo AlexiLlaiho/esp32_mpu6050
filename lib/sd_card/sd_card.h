@@ -24,6 +24,9 @@ extern "C"
 #endif
     //--------------------------------------------------------------------------------------------
     // Function declarations
+    uint8_t sd_card_init(void);
+    void check_a_file(void);
+    void write_file_anv(void);
     void write_a_file(void);
     void task_write_file(void *ignore);
 

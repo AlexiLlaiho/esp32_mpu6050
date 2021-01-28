@@ -85,4 +85,10 @@ void ms5611_set_resolution(enum ms5611_resolution_osr );
  */
 enum ms5611_status ms5611_read_temperature_and_pressure(float *, float *);
 
+/**
+ * \brief Calculate altitude from Pressure & Start point level pressure
+ * 
+*/
+float getAltitude(float pressure, float seaLevelPressure);
+
 #endif /* ms5611_H_INCLUDED */

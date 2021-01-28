@@ -101,7 +101,7 @@ void qmc5883_test()
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
-void qmc5883_data()
+void qmc5883_data(int16_t *q_x, int16_t *q_y, int16_t *q_z)
 {
     i2c_cmd_handle_t cmd;
     cmd = i2c_cmd_link_create();
@@ -126,24 +126,23 @@ void qmc5883_data()
     i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
 
-    short x = data[1] << 8 | data[0];
-    short z = data[3] << 8 | data[2];
-    short y = data[5] << 8 | data[4];
-    int angle = atan2((double)y, (double)x) * (180 / 3.14159265) + 180; // angle in degrees
-    printf("angle: %d, x: %d, y: %d, z: %d \n", angle, x, y, z);
-    //ESP_LOGD(tag, "angle: %d, x: %d, y: %d, z: %d", angle, x, y, z);
+    *q_x = data[1] << 8 | data[0];
+    *q_y = data[3] << 8 | data[2];
+    *q_z = data[5] << 8 | data[4];
+    // int angle = atan2((double)q_y, (double)q_x) * (180 / 3.14159265) + 180; // angle in degrees
+    // printf("angle: %d, x: %d, y: %d, z: %d \n", angle, x, y, z);    
 }
 
 void task_qmc5883l(void *ignore)
-{
-    // i2c_setup();
+{  
+    int16_t tqx = 0, tqy = 0, tqz = 0;  
     i2c_idf_init();
     qmc5883_test();
     hmc5883l_init();
 
     while (1)
     {
-        qmc5883_data();
+        qmc5883_data(&tqx, &tqy, &tqz);
         vTaskDelay(25 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
