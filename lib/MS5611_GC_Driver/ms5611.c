@@ -514,6 +514,23 @@ float getAltitude(float pressure, float seaLevelPressure)
     return (44330.0f * (1.0f - powf(pressure / seaLevelPressure, 0.1902949f)));
 }
 
+
+/**
+ * \brief // Filtering data
+ *
+ * \param[in] float : it's an old value of altitude
+ * \param[in] float : this is a present value of altitude
+ * \param[in] float : a - it's variable in range from 0.05 - 0.3 
+ *
+ * \return float : altitude post filtering
+ */
+float alt_post_filter(float value_old, float value_now, float a)
+{	
+	float value_filter = (1-a) * value_old + a * value_now;
+
+	return value_filter;
+}
+
 #ifdef __cplusplus
 }
 #endif

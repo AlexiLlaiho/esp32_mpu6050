@@ -12,6 +12,7 @@ void task_ms5611(void *ignore)
 	float temp_val = 0.0;
 	float press_val = 0.0;
 	float stp_press_val = 0.0; //start point pressure value
+	float alt = 0, alt_present = 0, a = 0.05;
 	    
 	ms5611_init();
 	ms5611_is_connected();
@@ -21,9 +22,10 @@ void task_ms5611(void *ignore)
 
     while(1) 
 	{		
-		ms5611_read_temperature_and_pressure(&temp_val, &press_val);
-		// printf("Pressure = %f \n", press_val);		
-		printf("Pressure = %f \n", getAltitude(press_val, stp_press_val));		
+		ms5611_read_temperature_and_pressure(&temp_val, &press_val);		
+		alt_present = getAltitude(press_val, stp_press_val);
+		alt = alt_post_filter(alt, alt_present, a);	
+		printf("Pressure = %f \n", alt);	
 	}
 	vTaskDelete(NULL);
 

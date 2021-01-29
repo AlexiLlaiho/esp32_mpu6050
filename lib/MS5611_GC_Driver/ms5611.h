@@ -91,4 +91,15 @@ enum ms5611_status ms5611_read_temperature_and_pressure(float *, float *);
 */
 float getAltitude(float pressure, float seaLevelPressure);
 
+/**
+ * \brief // Filtering data
+ *
+ * \param[in] float : it's an old value of altitude
+ * \param[in] float : this is a present value of altitude
+ * \param[in] float : a - it's variable in range from 0.05 - 0.3 
+ *
+ * \return float : altitude post filtering
+ */
+float alt_post_filter(float value_old, float value_now, float a);
+
 #endif /* ms5611_H_INCLUDED */
