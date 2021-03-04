@@ -278,7 +278,7 @@ uint8_t sd_card_init(void)
 void check_a_file(void)
 {
     ESP_LOGI(TAG, "Opening file");
-    f = fopen("/sdcard/runtest.txt", "w"); // First create a file.
+    f = fopen("/sdcard/runexp.txt", "w"); // First create a file.
     if (f == NULL)
     {
         ESP_LOGE(TAG, "Create a new file");
@@ -289,15 +289,9 @@ void check_a_file(void)
     fclose(f);
 }
 
-void write_file_anv(void)
+void write_file_anv(char *wdata)
 {
-    uint8_t mas_1[] = {1, 3, 5, 7, 9, 11, 13, 15, 17};
-    uint8_t mas_2[] = {2, 4, 6, 8, 10, 12, 14, 16, 18};
-    uint8_t mas_len = sizeof(mas_1) / sizeof(mas_1[0]);
-
-    if (massive_1_flag)
-    {
-        f = fopen("/sdcard/runtest.txt", "a");
+    f = fopen("/sdcard/runexp.txt", "a");
         if (f == NULL)
         {
             printf("Can't adding into file! \n");
@@ -305,42 +299,13 @@ void write_file_anv(void)
         }
         else
         {
-            fprintf(f, "Writing 1-st massive \n");
-            for (uint8_t z = 0; z < mas_len; z++)
-            {
-
-                fprintf(f, "value = %d; ", *(mas_1 + z));
-                printf("massive iterator is = %u \n", z);
-                vTaskDelay(100 / portTICK_PERIOD_MS);
-            }
-            fprintf(f, "\n");
+            fprintf(f, "%s ", wdata);            
             //write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_0);
             fclose(f);
             ESP_LOGI(TAG, "File written");
             // esp_vfs_fat_sdmmc_unmount();
             // ESP_LOGI(TAG, "Card unmounted");
-        }
-    }
-    else if (false)
-    {
-        f = fopen("/sdcard/runtest.txt", "a");
-        if (f == NULL)
-        {
-            printf("Can't adding into file! \n");
-            vTaskDelay(5000 / portTICK_PERIOD_MS);
-        }
-        else
-        {
-            printf("Writing in 2 massive \n");
-            for (int z = 0; z < mas_len; z++)
-            {
-                fprintf(f, "%d; ", *(mas_2 + z));
-            }
-            fprintf(f, "\n");
-            //write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_1);
-            fclose(f);
-        }
-    }
+        }        
 }
 
 void task_write_file(void *pvParameters)
@@ -353,7 +318,7 @@ void task_write_file(void *pvParameters)
     check_a_file();
     for (;;)
     {        
-        write_file_anv();
+        // write_file_anv();
         vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
