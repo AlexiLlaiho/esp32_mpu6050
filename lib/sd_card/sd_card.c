@@ -196,7 +196,7 @@ void write_a_file(void)
             printf("[%s] FILE %ld\n", pDirent->d_name, _stat.st_size);
         }
     }
-    closedir(pDir);    
+    closedir(pDir);
     // All done, unmount partition and disable SDMMC or SPI peripheral
     esp_vfs_fat_sdmmc_unmount();
     ESP_LOGI(TAG, "Card unmounted");
@@ -215,7 +215,7 @@ void write_data_to_file(FILE *f_file, const char *mountpl, uint16_t array_len, u
 uint8_t sd_card_init(void)
 {
     uint8_t sd_status;
-    ESP_LOGI(TAG, "Initializing SD card");    
+    ESP_LOGI(TAG, "Initializing SD card");
 #ifndef USE_SPI_MODE
     ESP_LOGI(TAG, "Using SDMMC peripheral");
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
@@ -292,20 +292,20 @@ void check_a_file(void)
 void write_file_anv(char *wdata)
 {
     f = fopen("/sdcard/runexp.txt", "a");
-        if (f == NULL)
-        {
-            printf("Can't adding into file! \n");
-            vTaskDelay(5000 / portTICK_PERIOD_MS);
-        }
-        else
-        {
-            fprintf(f, "%s ", wdata);            
-            //write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_0);
-            fclose(f);
-            ESP_LOGI(TAG, "File written");
-            // esp_vfs_fat_sdmmc_unmount();
-            // ESP_LOGI(TAG, "Card unmounted");
-        }        
+    if (f == NULL)
+    {
+        printf("Can't adding into file! \n");
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+    }
+    else
+    {
+        fprintf(f, "%s ", wdata);
+        //write_data_to_file(f, "/sdcard/runtest.txt", mpu_array_lenght, &p_array_0);
+        fclose(f);
+        ESP_LOGI(TAG, "File written");
+        // esp_vfs_fat_sdmmc_unmount();
+        // ESP_LOGI(TAG, "Card unmounted");
+    }
 }
 
 void task_write_file(void *pvParameters)
@@ -317,7 +317,7 @@ void task_write_file(void *pvParameters)
     // }
     check_a_file();
     for (;;)
-    {        
+    {
         // write_file_anv();
         vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
