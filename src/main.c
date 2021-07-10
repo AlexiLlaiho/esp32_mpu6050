@@ -33,7 +33,7 @@ esp_err_t event_handler(void *ctx, system_event_t *event)
 void app_main(void) 
 {
 	
-	xTaskCreatePinnedToCore(&vTask2, "vTask2", 1024, NULL, 5, NULL, 0);
+	// xTaskCreatePinnedToCore(&vTask2, "vTask2", 1024, NULL, 5, NULL, 0);
 	// xTaskCreatePinnedToCore(&task_mpu6050, "task_mpu6050", 4096, NULL, 1, NULL, 0);
 	// xTaskCreatePinnedToCore(&task_qmc5883l, "task_qmc5883l", 4096, NULL, 1, NULL, 0);
 	// xTaskCreatePinnedToCore(&task_write_file, "task_write_file", 8192, NULL, 3, NULL, 1);

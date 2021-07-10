@@ -7,7 +7,7 @@ float stp_press_val = 0.0; //start point pressure value
 float alt = 0, alt_present = 0, a = 0.24;
 int level = 0;
 int n = 0;
-int cycle_i = 0;
+uint16_t cycle_i = 0;
 int16_t w_alt = 0;
 int16_t ac_x = 0, ac_y = 0, ac_z = 0, gy_x = 0, gy_y = 0, gy_z = 0;
 int16_t tqx = 0, tqy = 0, tqz = 0;
@@ -40,7 +40,7 @@ void app_imu(void *ignore)
 		// 	alt = alt_post_filter(alt, alt_present, a);
 		// 	w_alt = (int16_t)(alt * 1000);						
 		// }				
-		n = sprintf(buffer, "Num: %i, Acc: %i, %i, %i; Gyro: %i, %i, %i; Mag: %i, %i, %i; Pres: %i \n",
+		n = sprintf(buffer, "Num: %u, Acc: %i, %i, %i; Gyro: %i, %i, %i; Mag: %i, %i, %i; Pres: %i \n",
 																		cycle_i, 
 																		ac_x, ac_y, ac_z, 
 																		gy_x, gy_y, gy_z, 
@@ -48,15 +48,17 @@ void app_imu(void *ignore)
 																		w_alt);
 		
 		++atmo_i;
-		if (cycle_i < 5000)
+		if (cycle_i < 25000)
 		{
 			write_file_anv(buffer);
 			gpio_set_level(GPIO_NUM_2, level);
 			level = !level;
+			printf("cycle_i = %u", cycle_i);
 		}
 		else
 		{
 			gpio_set_level(GPIO_NUM_2, 0);
+			vTaskDelete(NULL);
 		}			
 		// vTaskDelay(5/portTICK_PERIOD_MS);
 		++cycle_i;
