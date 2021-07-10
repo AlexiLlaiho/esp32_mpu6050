@@ -158,7 +158,7 @@ void Get_Data_Accelerometer(int16_t *acc_x, int16_t *acc_y, int16_t *acc_z)
 		ESP_ERROR_CHECK(i2c_master_start(cmd));
 		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (I2C_ADDRESS << 1) | I2C_MASTER_WRITE, 1));
 		ESP_ERROR_CHECK(i2c_master_write_byte(cmd, MPU6050_ACCEL_XOUT_H, 1));
-		ESP_ERROR_CHECK(i2c_master_stop(cmd));
+		ESP_ERROR_CHECK(i2c_master_stop(cmd));		
 		ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_NUM_0, cmd, 1000/portTICK_PERIOD_MS));
 		i2c_cmd_link_delete(cmd);
 
